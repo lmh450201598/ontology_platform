@@ -26,6 +26,10 @@ public class LinkType {
     
     private String industryId;
     
+    private String sourceColumn;
+    
+    private String targetColumn;
+    
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;

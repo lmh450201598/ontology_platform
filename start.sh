@@ -110,8 +110,8 @@ if [ ! -f "target/ontology-backend-1.0.0.jar" ]; then
     fi
 fi
 
-# Run Java backend
-java -jar target/ontology-backend-1.0.0.jar &
+# Run Java backend with custom tmpdir
+java -Djava.io.tmpdir=/tmp -jar target/ontology-backend-1.0.0.jar &
 JAVA_PID=$!
 cd ..
 

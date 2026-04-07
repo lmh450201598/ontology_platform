@@ -133,7 +133,7 @@ function ExecutionPanel({
             )}
           >
             <Zap className="w-3.5 h-3.5 inline mr-1.5" />
-            Execute
+            执行
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -145,7 +145,7 @@ function ExecutionPanel({
             )}
           >
             <History className="w-3.5 h-3.5 inline mr-1.5" />
-            History ({executions.length})
+            历史 ({executions.length})
           </button>
         </div>
 
@@ -157,10 +157,10 @@ function ExecutionPanel({
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                   <Shield className="w-4 h-4 text-blue-500" />
-                  Parameters
+                  参数
                 </h3>
                 {action.parameters.length === 0 ? (
-                  <div className="text-sm text-slate-400 italic">No parameters defined.</div>
+                  <div className="text-sm text-slate-400 italic">未定义参数。</div>
                 ) : (
                   <div className="space-y-3">
                     {action.parameters.map((p, idx) => (
@@ -227,10 +227,10 @@ function ExecutionPanel({
                   className="flex-1 gap-2 bg-purple-600 hover:bg-purple-700"
                 >
                   {executing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-                  {executing ? 'Executing...' : 'Execute Action'}
+                  {executing ? '执行中...' : '执行动作'}
                 </Button>
                 <Button variant="outline" onClick={handleReset} className="gap-1.5">
-                  Reset
+                  重置
                 </Button>
               </div>
 
@@ -249,7 +249,7 @@ function ExecutionPanel({
                       <XCircle className="w-5 h-5 text-red-600" />
                     )}
                     <span className={cn('font-medium text-sm', result.status === 'success' ? 'text-emerald-800' : 'text-red-800')}>
-                      {result.status === 'success' ? 'Execution Successful' : 'Validation Failed'}
+                      {result.status === 'success' ? '执行成功' : '验证失败'}
                     </span>
                     {result.executionId && (
                       <span className="text-[10px] font-mono text-slate-400 ml-auto">{result.executionId}</span>
@@ -271,7 +271,7 @@ function ExecutionPanel({
                   {/* Side effects */}
                   {result.sideEffects && result.sideEffects.length > 0 && (
                     <div>
-                      <div className="text-xs font-semibold text-slate-600 mb-1.5">Side Effects:</div>
+                      <div className="text-xs font-semibold text-slate-600 mb-1.5">副作用：</div>
                       {result.sideEffects.map((se: any, i: number) => (
                         <div key={i} className="flex items-start gap-2 text-xs mb-1.5">
                           {se.status === 'triggered' && <Zap className="w-3 h-3 text-amber-500 mt-0.5" />}
@@ -304,12 +304,12 @@ function ExecutionPanel({
               {loadingHistory ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading history...
+                  加载历史...
                 </div>
               ) : executions.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
                   <History className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No executions yet.</p>
+                  <p className="text-sm">暂无执行记录。</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -356,7 +356,7 @@ function ExecutionPanel({
                       <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-400">
                         <Clock className="w-3 h-3" />
                         {new Date(exec.created_at + 'Z').toLocaleString()}
-                        <span>· by {exec.executed_by}</span>
+                        <span>· 由 {exec.executed_by}</span>
                       </div>
                     </div>
                   ))}
@@ -377,8 +377,8 @@ interface RuleDef { type: string; description: string; }
 
 const PARAM_TYPES = ['string', 'integer', 'double', 'boolean', 'date', 'timestamp'];
 const RULE_TYPES = [
-  { value: 'validation', label: 'Validation', icon: Shield, color: 'text-blue-600' },
-  { value: 'side_effect', label: 'Side Effect', icon: Zap, color: 'text-amber-600' },
+  { value: 'validation', label: '验证', icon: Shield, color: 'text-blue-600' },
+  { value: 'side_effect', label: '副作用', icon: Zap, color: 'text-amber-600' },
   { value: 'webhook', label: 'Webhook', icon: Webhook, color: 'text-emerald-600' },
 ];
 
@@ -392,7 +392,7 @@ function ParamRow({ param, onChange, onRemove }: {
       <Input
         value={param.name}
         onChange={e => onChange({ ...param, name: e.target.value })}
-        placeholder="Parameter name"
+        placeholder="参数名称"
         className="flex-1 h-8 text-sm"
       />
       <Select value={param.type} onValueChange={v => onChange({ ...param, type: v })}>
@@ -405,7 +405,7 @@ function ParamRow({ param, onChange, onRemove }: {
         onClick={() => onChange({ ...param, required: !param.required })}
         className={cn('text-xs px-2 py-1 rounded border transition-colors', param.required ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-400 border-slate-200')}
       >
-        {param.required ? 'required' : 'optional'}
+        {param.required ? '必填' : '可选'}
       </button>
       <button onClick={onRemove} className="text-slate-400 hover:text-red-500 transition-colors">
         <X className="w-3.5 h-3.5" />
@@ -435,7 +435,7 @@ function RuleRow({ rule, onChange, onRemove }: {
       <Input
         value={rule.description}
         onChange={e => onChange({ ...rule, description: e.target.value })}
-        placeholder="Rule description..."
+        placeholder="规则描述..."
         className="flex-1 h-8 text-xs"
       />
       <button onClick={onRemove} className="text-slate-400 hover:text-red-500 mt-1 transition-colors">
@@ -547,38 +547,38 @@ export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Action Types</h1>
-          <p className="text-slate-500 text-sm mt-1">Define and execute operations that mutate object data.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">动作类型</h1>
+          <p className="text-slate-500 text-sm mt-1">定义和执行修改对象数据的操作。</p>
         </div>
         <Dialog open={createDialogOpen} onOpenChange={(open) => { setCreateDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="w-4 h-4" /> New Action Type</Button>
+            <Button className="gap-2"><Plus className="w-4 h-4" /> 新建动作类型</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Action Type</DialogTitle>
-              <DialogDescription>Define a new operation. Use AI to automatically generate parameters and rules.</DialogDescription>
+              <DialogTitle>创建动作类型</DialogTitle>
+              <DialogDescription>定义一个新操作。使用 AI 自动生成参数和规则。</DialogDescription>
             </DialogHeader>
             <div className="space-y-5 py-2">
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Display Name *</Label>
-                  <Input value={newActionName} onChange={e => handleNameChange(e.target.value)} placeholder="e.g. 更新设备状态" />
+                  <Label className="text-xs">显示名称 *</Label>
+                  <Input value={newActionName} onChange={e => handleNameChange(e.target.value)} placeholder="例如：更新设备状态" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Action Type ID *</Label>
+                  <Label className="text-xs">动作类型 ID *</Label>
                   <Input value={newActionId} onChange={e => setNewActionId(e.target.value)} placeholder="act_update_status" className="font-mono text-sm" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Description</Label>
-                <Input value={newActionDesc} onChange={e => setNewActionDesc(e.target.value)} placeholder="What does this action do?" />
+                <Label className="text-xs">描述</Label>
+                <Input value={newActionDesc} onChange={e => setNewActionDesc(e.target.value)} placeholder="这个动作做什么？" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Target Object Type *</Label>
+                <Label className="text-xs">目标对象类型 *</Label>
                 <Select value={newActionTarget} onValueChange={setNewActionTarget}>
-                  <SelectTrigger><SelectValue placeholder="Select target object" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="选择目标对象" /></SelectTrigger>
                   <SelectContent>
                     {data.objectTypes.map(ot => <SelectItem key={ot.id} value={ot.id}>{ot.name}</SelectItem>)}
                   </SelectContent>
@@ -592,7 +592,7 @@ export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
                 <Button size="sm" variant="outline" onClick={handleAIGenerate} disabled={generating || !newActionName || !newActionTarget}
                   className="gap-1.5 text-purple-700 border-purple-200 hover:bg-purple-50">
                   {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {generating ? 'Generating...' : 'AI 生成'}
+                  {generating ? '生成中...' : 'AI 生成'}
                 </Button>
               </div>
               {aiReasoning && (
@@ -609,12 +609,12 @@ export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
                     onClick={() => setNewParams(prev => [...prev, { name: '', type: 'string', required: false }])}
                     className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
                   >
-                    <Plus className="w-3 h-3" /> Add
+                    <Plus className="w-3 h-3" /> 添加
                   </button>
                 </div>
                 {newParams.length === 0 ? (
                   <div className="text-xs text-slate-400 italic text-center py-2 border border-dashed border-slate-200 rounded-lg">
-                    No parameters — click Add or use AI Generate
+                    无参数 — 点击添加或使用 AI 生成
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -638,12 +638,12 @@ export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
                     onClick={() => setNewRules(prev => [...prev, { type: 'validation', description: '' }])}
                     className="text-xs text-amber-600 hover:text-amber-700 flex items-center gap-1"
                   >
-                    <Plus className="w-3 h-3" /> Add
+                    <Plus className="w-3 h-3" /> 添加
                   </button>
                 </div>
                 {newRules.length === 0 ? (
                   <div className="text-xs text-slate-400 italic text-center py-2 border border-dashed border-slate-200 rounded-lg">
-                    No rules — click Add or use AI Generate
+                    无规则 — 点击添加或使用 AI 生成
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -660,10 +660,10 @@ export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setCreateDialogOpen(false); resetForm(); }}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setCreateDialogOpen(false); resetForm(); }}>取消</Button>
               <Button onClick={handleCreate} disabled={creating}>
                 {creating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                Create Action
+                创建动作
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -673,7 +673,7 @@ export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
       <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input placeholder="Search action types..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="搜索动作类型..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 
@@ -681,12 +681,12 @@ export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/50">
-              <TableHead>Name</TableHead>
-              <TableHead>Action Type ID</TableHead>
-              <TableHead>Target Object</TableHead>
-              <TableHead>Parameters</TableHead>
-              <TableHead>Rules</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>名称</TableHead>
+              <TableHead>动作类型 ID</TableHead>
+              <TableHead>目标对象</TableHead>
+              <TableHead>参数</TableHead>
+              <TableHead>规则</TableHead>
+              <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -728,7 +728,7 @@ export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                      {at.parameters.length} params
+                      {at.parameters.length} 个参数
                     </span>
                   </TableCell>
                   <TableCell>

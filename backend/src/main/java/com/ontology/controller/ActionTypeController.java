@@ -6,6 +6,7 @@ import com.ontology.entity.ActionType;
 import com.ontology.mapper.ActionParameterMapper;
 import com.ontology.mapper.ActionRuleMapper;
 import com.ontology.mapper.ActionTypeMapper;
+import com.ontology.service.OntologyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,11 +19,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class ActionTypeController {
-    
+
     private final ActionTypeMapper actionTypeMapper;
     private final ActionParameterMapper actionParameterMapper;
     private final ActionRuleMapper actionRuleMapper;
-    
+    private final OntologyService ontologyService;
+
     @PostMapping
     public Map<String, Object> create(@RequestBody Map<String, Object> request) {
         ActionType actionType = new ActionType();
@@ -31,7 +33,7 @@ public class ActionTypeController {
         actionType.setDescription((String) request.get("description"));
         actionType.setTargetObjectId((String) request.get("targetObjectId"));
         actionTypeMapper.insert(actionType);
-        
+
         // Insert parameters
         List<Map<String, Object>> parameters = (List<Map<String, Object>>) request.get("parameters");
         if (parameters != null) {
@@ -47,7 +49,7 @@ public class ActionTypeController {
                 actionParameterMapper.insert(param);
             }
         }
-        
+
         // Insert rules
         List<Map<String, Object>> rules = (List<Map<String, Object>>) request.get("rules");
         if (rules != null) {
@@ -61,26 +63,29 @@ public class ActionTypeController {
                 actionRuleMapper.insert(rule);
             }
         }
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
+        result.put("data", ontologyService.buildOntologyData());
         return result;
     }
-    
+
     @PutMapping("/{id}")
     public Map<String, Object> update(@PathVariable String id, @RequestBody ActionType actionType) {
         actionType.setId(id);
         actionTypeMapper.updateById(actionType);
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
+        result.put("data", ontologyService.buildOntologyData());
         return result;
     }
-    
+
     @DeleteMapping("/{id}")
     public Map<String, Object> delete(@PathVariable String id) {
         actionTypeMapper.deleteById(id);
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
+        result.put("data", ontologyService.buildOntologyData());
         return result;
     }
 }

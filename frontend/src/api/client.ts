@@ -73,10 +73,23 @@ export const api = {
       { method: 'DELETE' }
     ),
 
+  updateProperty: (
+    objectTypeId: string,
+    propId: string,
+    property: {
+      id: string; name: string; type?: string; description?: string;
+      isPrimaryKey?: boolean; baseColumn?: string; typeClasses?: string[];
+    }
+  ) =>
+    request<{ success: boolean; data: OntologyData }>(
+      `/object-types/${objectTypeId}/properties/${propId}`,
+      { method: 'PUT', body: JSON.stringify(property) }
+    ),
+
   // ── Link Types ─────────────────────────────────────────────────────────────
   createLinkType: (data: {
     id: string; name: string; sourceObjectId: string; targetObjectId: string;
-    cardinality?: string; description?: string;
+    cardinality?: string; description?: string; sourceColumn?: string; targetColumn?: string;
   }) =>
     request<{ success: boolean; data: OntologyData }>('/link-types', {
       method: 'POST',
@@ -85,7 +98,7 @@ export const api = {
 
   updateLinkType: (id: string, data: Partial<{
     name: string; sourceObjectId: string; targetObjectId: string;
-    cardinality: string; description: string;
+    cardinality: string; description: string; sourceColumn: string; targetColumn: string;
   }>) =>
     request<{ success: boolean; data: OntologyData }>(`/link-types/${id}`, {
       method: 'PUT',
@@ -267,4 +280,19 @@ export const api = {
 
   getAgentAnalyses: (id: string) =>
     request<{ analyses: any[] }>(`/research-agents/${id}/analyses`),
+
+  // ── Datasets ────────────────────────────────────────────────────────────────
+  getDatasetColumns: (datasetName: string) =>
+    request<{ success: boolean; data: Array<{
+      columnName: string;
+      columnComment: string;
+      dataType: string;
+      isNullable: string;
+    }>; datasetName: string }>(`/datasets/${datasetName}/columns`),
+
+  getAllDatasets: () =>
+    request<{ success: boolean; data: Array<{
+      tableName: string;
+      tableComment: string;
+    }> }>('/datasets'),
 };

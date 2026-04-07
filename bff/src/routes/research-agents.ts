@@ -19,27 +19,45 @@ function checkAI(): boolean {
 async function callDeepSeek(messages: { role: string; content: string }[]): Promise<string> {
   if (!DEEPSEEK_API_KEY) throw new Error('DEEPSEEK_API_KEY not configured');
 
-  const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      temperature: 0.7,
-      max_tokens: 4096,
-    }),
-  });
+  const startTime = Date.now();
+  console.log(`[DeepSeek] Request started at ${new Date().toISOString()}`);
+  console.log(`[DeepSeek] Messages:`, JSON.stringify(messages, null, 2));
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`DeepSeek API error: ${error}`);
+  try {
+    const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        temperature: 0.7,
+        max_tokens: 4096,
+      }),
+    });
+
+    const duration = Date.now() - startTime;
+    console.log(`[DeepSeek] Response received in ${duration}ms, status: ${response.status}`);
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error(`[DeepSeek] API error: ${error}`);
+      throw new Error(`DeepSeek API error: ${error}`);
+    }
+
+    const data = await response.json() as any;
+    const content = data.choices?.[0]?.message?.content || '';
+    console.log(`[DeepSeek] Response content length: ${content.length} chars`);
+    console.log(`[DeepSeek] Token usage:`, data.usage);
+    
+    return content;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[DeepSeek] Request failed after ${duration}ms:`, error);
+    throw error;
   }
-
-  const data = await response.json() as any;
-  return data.choices?.[0]?.message?.content || '';
 }
 
 // Research system prompt

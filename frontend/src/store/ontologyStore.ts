@@ -30,6 +30,8 @@ export interface LinkType {
   cardinality: Cardinality;
   description?: string;
   industryId?: string | null;
+  sourceColumn?: string;
+  targetColumn?: string;
 }
 
 export interface ActionRule {

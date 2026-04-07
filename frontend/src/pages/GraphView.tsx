@@ -58,7 +58,7 @@ const ObjectTypeNode = ({ data }: NodeProps) => {
       {/* Properties */}
       <div className="px-3 py-2">
         <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-          Properties ({properties.length})
+          属性 ({properties.length})
         </div>
         <div className="space-y-0.5">
           {properties.slice(0, 5).map((p: any) => (
@@ -69,7 +69,7 @@ const ObjectTypeNode = ({ data }: NodeProps) => {
             </div>
           ))}
           {properties.length > 5 && (
-            <div className="text-[10px] text-slate-400 italic pt-0.5">+{properties.length - 5} more</div>
+            <div className="text-[10px] text-slate-400 italic pt-0.5">+{properties.length - 5} 更多</div>
           )}
         </div>
       </div>
@@ -165,7 +165,7 @@ function DetailPanel({
         {/* Properties */}
         <div className="px-4 py-3 border-b border-slate-100">
           <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Properties ({objectType.properties.length})
+            属性 ({objectType.properties.length})
           </h3>
           <div className="space-y-1">
             {objectType.properties.map(p => (
@@ -185,7 +185,7 @@ function DetailPanel({
         {outbound.length > 0 && (
           <div className="px-4 py-3 border-b border-slate-100">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Outbound Links ({outbound.length})
+              出站链接 ({outbound.length})
             </h3>
             <div className="space-y-1.5">
               {outbound.map(lt => (
@@ -212,7 +212,7 @@ function DetailPanel({
         {inbound.length > 0 && (
           <div className="px-4 py-3">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Inbound Links ({inbound.length})
+              入站链接 ({inbound.length})
             </h3>
             <div className="space-y-1.5">
               {inbound.map(lt => (
@@ -326,19 +326,19 @@ export function GraphView({ data }: { data: OntologyData }) {
     <div className="h-full w-full flex flex-col -m-6">
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Ontology Graph</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">本体图谱</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Click on any entity to see its details and relationships. Navigate through links to explore the graph.
+            点击任意实体查看其详情和关系。通过链接导航探索图谱。
           </p>
         </div>
         <div className="flex items-center gap-3 text-sm">
           <div className="flex items-center gap-1.5 text-slate-500">
             <Database className="w-3.5 h-3.5 text-blue-500" />
-            <span>{data.objectTypes.length} entities</span>
+            <span>{data.objectTypes.length} 个实体</span>
           </div>
           <div className="flex items-center gap-1.5 text-slate-500">
             <LinkIcon className="w-3.5 h-3.5 text-emerald-500" />
-            <span>{data.linkTypes.length} relationships</span>
+            <span>{data.linkTypes.length} 个关系</span>
           </div>
         </div>
       </div>

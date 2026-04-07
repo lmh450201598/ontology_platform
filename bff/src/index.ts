@@ -12,8 +12,27 @@ const PORT = process.env.PORT || 3001;
 const JAVA_BACKEND_URL = process.env.JAVA_BACKEND_URL || 'http://localhost:8080';
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── API Proxy to Java Backend (must be before body parsers) ────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Proxy all /api/* requests to Java backend (except AI routes)
+const apiProxy = createProxyMiddleware({
+  target: JAVA_BACKEND_URL,
+  changeOrigin: true,
+  logLevel: 'debug',
+  timeout: 60000,
+  proxyTimeout: 60000,
+});
+
+// Proxy non-AI routes to Java backend (before body parsing)
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/ai/') || req.path.startsWith('/agent/') || req.path.startsWith('/research-agents/')) {
+    return next();
+  }
+  return apiProxy(req, res, next);
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── AI Routes (handled by BFF) ────────────────────────────────────────────────
@@ -23,28 +42,13 @@ import aiRoutes from './routes/ai.js';
 import agentRoutes from './routes/agent.js';
 import researchAgentRoutes from './routes/research-agents.js';
 
+// Body parsers only for AI routes
+app.use('/api/ai', express.json({ limit: '10mb' }));
 app.use('/api/ai', aiRoutes);
+app.use('/api/agent', express.json({ limit: '10mb' }));
 app.use('/api/agent', agentRoutes);
+app.use('/api/research-agents', express.json({ limit: '10mb' }));
 app.use('/api/research-agents', researchAgentRoutes);
-
-// ══════════════════════════════════════════════════════════════════════════════
-// ── API Proxy to Java Backend ─────────────────────────────────────────────────
-// ══════════════════════════════════════════════════════════════════════════════
-
-// Proxy all /api/* requests to Java backend (except AI routes)
-const apiProxy = createProxyMiddleware({
-  target: JAVA_BACKEND_URL,
-  changeOrigin: true,
-  pathFilter: (pathname: string) => {
-    return pathname.startsWith('/api') &&
-      !pathname.startsWith('/api/ai/') &&
-      !pathname.startsWith('/api/agent/') &&
-      !pathname.startsWith('/api/research-agents/');
-  },
-  logger: console,
-});
-
-app.use(apiProxy);
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Static Files (Frontend) ───────────────────────────────────────────────────
