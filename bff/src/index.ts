@@ -28,7 +28,7 @@ const apiProxy = createProxyMiddleware({
 
 // Proxy non-AI routes to Java backend (before body parsing)
 app.use('/api', (req, res, next) => {
-  if (req.path.startsWith('/ai/') || req.path.startsWith('/agent/') || req.path.startsWith('/research-agents/')) {
+  if (req.path.startsWith('/ai/') || req.path.startsWith('/agent/') || req.path.startsWith('/research-agents/') || req.path.startsWith('/object-explorer/')) {
     return next();
   }
   return apiProxy(req, res, next);
@@ -41,6 +41,7 @@ app.use('/api', (req, res, next) => {
 import aiRoutes from './routes/ai.js';
 import agentRoutes from './routes/agent.js';
 import researchAgentRoutes from './routes/research-agents.js';
+import objectExplorerRoutes from './routes/object-explorer.js';
 
 // Body parsers only for AI routes
 app.use('/api/ai', express.json({ limit: '10mb' }));
@@ -49,6 +50,8 @@ app.use('/api/agent', express.json({ limit: '10mb' }));
 app.use('/api/agent', agentRoutes);
 app.use('/api/research-agents', express.json({ limit: '10mb' }));
 app.use('/api/research-agents', researchAgentRoutes);
+app.use('/api/object-explorer', express.json({ limit: '10mb' }));
+app.use('/api/object-explorer', objectExplorerRoutes);
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Static Files (Frontend) ───────────────────────────────────────────────────

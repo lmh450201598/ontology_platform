@@ -67,22 +67,29 @@ function ExecutionPanel({
     try {
       const res = await api.executeAction(action.id, params);
       setResult(res);
-      if (res.status === 'success') {
-        toast.success(`Action "${action.name}" executed successfully.`);
+      if (res.status === 'completed') {
+        toast.success(`动作 "${action.name}" 执行成功。`);
         // Refresh history
         api.getActionExecutions(action.id).then(r => setExecutions(r.executions));
+      } else if (res.status === 'failed' && res.validationErrors) {
+        toast.error(`验证失败: ${res.validationErrors.join('; ')}`);
       } else {
-        toast.error(`Validation failed: ${res.validationErrors?.join('; ')}`);
+        toast.error(`执行失败: ${res.status}`);
       }
     } catch (err: any) {
       // 400 returns validation errors in body
       try {
         const body = JSON.parse(err.message.replace(/^.*?(\{)/, '$1'));
         setResult(body);
+        if (body.validationErrors) {
+          toast.error(`验证失败: ${body.validationErrors.join('; ')}`);
+        } else {
+          toast.error(err.message);
+        }
       } catch {
         setResult({ status: 'error', executionId: '', validationErrors: [err.message] });
+        toast.error(err.message);
       }
-      toast.error(err.message);
     } finally {
       setExecuting(false);
     }

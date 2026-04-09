@@ -295,4 +295,13 @@ export const api = {
       tableName: string;
       tableComment: string;
     }> }>('/datasets'),
+
+  // ── Object Explorer ─────────────────────────────────────────────────────────
+  getObjectInstances: (objectTypeId: string) =>
+    request<{ success: boolean; data: any[]; objectType?: any }>(`/object-explorer/${objectTypeId}/instances`),
+
+  getRelationGraph: (objectTypeId: string, instanceId: string, depth = 3) =>
+    request<{ success: boolean; data: { nodes: any[]; links: any[] } }>(
+      `/object-explorer/${objectTypeId}/instances/${encodeURIComponent(instanceId)}/graph?depth=${depth}`
+    ),
 };

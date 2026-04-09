@@ -9,6 +9,7 @@ import { Settings } from './pages/Settings';
 import { AiStudio } from './pages/AiStudio';
 import { AgentStudio } from './pages/AgentStudio';
 import { IndustryMap } from './pages/IndustryMap';
+import { ObjectExplorer } from './pages/ObjectExplorer';
 import { OntologyData } from './store/ontologyStore';
 import { Toaster } from 'sonner';
 import { api } from './api/client';
@@ -52,6 +53,8 @@ export default function App() {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard data={ontology} onNavigate={setActiveTab} />;
+      case 'explorer':
+        return <ObjectExplorer data={ontology} />;
       case 'objects':
         return <ObjectTypes data={ontology} onUpdate={setOntology} />;
       case 'links':

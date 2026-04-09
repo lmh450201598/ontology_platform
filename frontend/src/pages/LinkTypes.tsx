@@ -22,7 +22,7 @@ export function LinkTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (d
   const [newLinkId, setNewLinkId] = useState('');
   const [newLinkSource, setNewLinkSource] = useState('');
   const [newLinkTarget, setNewLinkTarget] = useState('');
-  const [newLinkCardinality, setNewLinkCardinality] = useState<'1:1' | '1:N' | 'N:M'>('1:N');
+  const [newLinkCardinality, setNewLinkCardinality] = useState<'1:1' | '1:N' | 'N:1' | 'N:M'>('1:N');
   const [newLinkDesc, setNewLinkDesc] = useState('');
   const [newLinkSourceColumn, setNewLinkSourceColumn] = useState('');
   const [newLinkTargetColumn, setNewLinkTargetColumn] = useState('');
@@ -32,7 +32,7 @@ export function LinkTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (d
   const [editLinkName, setEditLinkName] = useState('');
   const [editLinkSource, setEditLinkSource] = useState('');
   const [editLinkTarget, setEditLinkTarget] = useState('');
-  const [editLinkCardinality, setEditLinkCardinality] = useState<'1:1' | '1:N' | 'N:M'>('1:N');
+  const [editLinkCardinality, setEditLinkCardinality] = useState<'1:1' | '1:N' | 'N:1' | 'N:M'>('1:N');
   const [editLinkDesc, setEditLinkDesc] = useState('');
   const [editLinkSourceColumn, setEditLinkSourceColumn] = useState('');
   const [editLinkTargetColumn, setEditLinkTargetColumn] = useState('');
@@ -171,7 +171,7 @@ export function LinkTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (d
     setEditLinkName(lt.name);
     setEditLinkSource(lt.sourceObjectId);
     setEditLinkTarget(lt.targetObjectId);
-    setEditLinkCardinality(lt.cardinality as '1:1' | '1:N' | 'N:M');
+    setEditLinkCardinality(lt.cardinality as '1:1' | '1:N' | 'N:1' | 'N:M');
     setEditLinkDesc(lt.description || '');
     setEditLinkSourceColumn(lt.sourceColumn || '');
     setEditLinkTargetColumn(lt.targetColumn || '');
@@ -364,6 +364,7 @@ export function LinkTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (d
                     <SelectContent>
                       <SelectItem value="1:1">一对一 (1:1)</SelectItem>
                       <SelectItem value="1:N">一对多 (1:N)</SelectItem>
+                      <SelectItem value="N:1">多对一 (N:1)</SelectItem>
                       <SelectItem value="N:M">多对多 (N:M)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -570,6 +571,7 @@ export function LinkTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (d
                 <SelectContent>
                   <SelectItem value="1:1">一对一 (1:1)</SelectItem>
                   <SelectItem value="1:N">一对多 (1:N)</SelectItem>
+                  <SelectItem value="N:1">多对一 (N:1)</SelectItem>
                   <SelectItem value="N:M">多对多 (N:M)</SelectItem>
                 </SelectContent>
               </Select>
