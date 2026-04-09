@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { ObjectTypes } from './pages/ObjectTypes';
 import { LinkTypes } from './pages/LinkTypes';
 import { ActionTypes } from './pages/ActionTypes';
+import { FunctionTypes } from './pages/FunctionTypes';
 import { GraphView } from './pages/GraphView';
 import { Settings } from './pages/Settings';
 import { AiStudio } from './pages/AiStudio';
@@ -59,6 +60,8 @@ export default function App() {
         return <ObjectTypes data={ontology} onUpdate={setOntology} />;
       case 'links':
         return <LinkTypes data={ontology} onUpdate={setOntology} />;
+      case 'functions':
+        return <FunctionTypes />;
       case 'actions':
         return <ActionTypes data={ontology} onUpdate={setOntology} />;
       case 'graph':

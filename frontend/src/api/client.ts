@@ -304,4 +304,37 @@ export const api = {
     request<{ success: boolean; data: { nodes: any[]; links: any[] } }>(
       `/object-explorer/${objectTypeId}/instances/${encodeURIComponent(instanceId)}/graph?depth=${depth}`
     ),
+
+  // ── Function Types ──────────────────────────────────────────────────────────
+  getFunctionTypes: () =>
+    request<{ success: boolean; functions: any[] }>('/function-types'),
+
+  createFunctionType: (data: {
+    name: string;
+    restRoute: string;
+    description?: string;
+    inputParams?: any[];
+    outputParams?: any[];
+  }) =>
+    request<{ success: boolean; data: any }>('/function-types', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateFunctionType: (id: string, data: Partial<{
+    name: string;
+    restRoute: string;
+    description: string;
+    inputParams: any[];
+    outputParams: any[];
+  }>) =>
+    request<{ success: boolean; data: any }>(`/function-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteFunctionType: (id: string) =>
+    request<{ success: boolean }>(`/function-types/${id}`, {
+      method: 'DELETE',
+    }),
 };

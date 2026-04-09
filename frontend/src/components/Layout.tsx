@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Database, Link as LinkIcon, Network, Settings, Search, Bell, UserCircle, PlayCircle, Save, CheckCircle2, Sparkles, Bot, Building2, Compass } from 'lucide-react';
+import { LayoutDashboard, Database, Link as LinkIcon, Network, Settings, Search, Bell, UserCircle, PlayCircle, Save, CheckCircle2, Sparkles, Bot, Building2, Compass, Code } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '@/src/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from '@/src/components/ui/sheet';
@@ -17,6 +17,7 @@ const navItems = [
   { id: 'explorer', label: '对象浏览器', icon: Compass },
   { id: 'objects', label: '对象类型', icon: Database },
   { id: 'links', label: '链接类型', icon: LinkIcon },
+  { id: 'functions', label: '函数类型', icon: Code },
   { id: 'actions', label: '动作类型', icon: PlayCircle },
   { id: 'graph', label: '本体图谱', icon: Network },
   // { id: 'industry', label: '产业图谱', icon: Building2 },
