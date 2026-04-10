@@ -5,6 +5,9 @@ import fetch from 'node-fetch';
 const router = Router();
 const MODEL = 'deepseek-chat';
 
+// 流式输出支持的模型
+const STREAM_MODEL = 'deepseek-chat';
+
 // Java backend URL
 const JAVA_BACKEND = process.env.JAVA_BACKEND_URL || 'http://localhost:8080';
 
@@ -32,6 +35,10 @@ async function callDeepSeek(messages: { role: string; content: string }[]): Prom
   console.log(`[DeepSeek AI] Request started at ${new Date().toISOString()}`);
   console.log(`[DeepSeek AI] Messages count: ${messages.length}`);
 
+  // 创建 AbortController 用于超时控制
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
+
   try {
     const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
       method: 'POST',
@@ -45,7 +52,10 @@ async function callDeepSeek(messages: { role: string; content: string }[]): Prom
         temperature: 0.7,
         max_tokens: 4096,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const duration = Date.now() - startTime;
     console.log(`[DeepSeek AI] Response received in ${duration}ms, status: ${response.status}`);
@@ -62,8 +72,15 @@ async function callDeepSeek(messages: { role: string; content: string }[]): Prom
     console.log(`[DeepSeek AI] Token usage:`, data.usage);
     
     return content;
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
     const duration = Date.now() - startTime;
+    
+    if (error.name === 'AbortError') {
+      console.error(`[DeepSeek AI] Request timeout after ${duration}ms`);
+      throw new Error('DeepSeek API 请求超时，请稍后重试');
+    }
+    
     console.error(`[DeepSeek AI] Request failed after ${duration}ms:`, error);
     throw error;
   }
@@ -163,6 +180,158 @@ router.post('/conversation', async (req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// 流式对话API
+router.post('/conversation/stream', async (req, res) => {
+  if (!checkAI()) {
+    return res.status(503).json({ error: 'DEEPSEEK_API_KEY not configured' });
+  }
+
+  try {
+    const { sessionId, message, includeCurrentOntology } = req.body;
+
+    // Get or create session
+    let session = sessionId ? sessions.get(sessionId) : null;
+    if (!session) {
+      session = {
+        id: crypto.randomUUID(),
+        history: [],
+        currentOntology: null,
+        createdAt: Date.now(),
+      };
+      sessions.set(session.id, session);
+    }
+
+    // Get current ontology from Java backend if needed
+    let contextPrefix = '';
+    if (includeCurrentOntology || session.history.length === 0) {
+      try {
+        const response = await fetch(`${JAVA_BACKEND}/api/ontology`);
+        const dbOntology = await response.json();
+        if (dbOntology.objectTypes?.length > 0) {
+          contextPrefix = `\n\n[当前已有本体]\n\`\`\`json\n${JSON.stringify(dbOntology, null, 2)}\n\`\`\`\n\n在此基础上进行修改。`;
+        }
+      } catch (e) {}
+    }
+
+    // Build messages for DeepSeek
+    const messages: { role: string; content: string }[] = [
+      { role: 'system', content: ONTOLOGY_SYSTEM_PROMPT },
+    ];
+
+    // Add history
+    for (const h of session.history) {
+      messages.push({
+        role: h.role === 'assistant' ? 'assistant' : 'user',
+        content: h.content,
+      });
+    }
+
+    // Add current message
+    const userMessage = session.history.length === 0 ? message + contextPrefix : message;
+    messages.push({ role: 'user', content: userMessage });
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Session-Id', session.id);
+
+    // Call DeepSeek with streaming
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2分钟超时
+
+    const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: STREAM_MODEL,
+        messages,
+        temperature: 0.7,
+        max_tokens: 4096,
+        stream: true, // 启用流式输出
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const error = await response.text();
+      res.write(`data: ${JSON.stringify({ error: `DeepSeek API error: ${error}` })}\n\n`);
+      res.end();
+      return;
+    }
+
+    // Process stream
+    const reader = response.body;
+    if (!reader) {
+      res.write(`data: ${JSON.stringify({ error: 'No response body' })}\n\n`);
+      res.end();
+      return;
+    }
+
+    let fullContent = '';
+    const decoder = new TextDecoder();
+
+    reader.on('data', (chunk: Buffer) => {
+      const text = decoder.decode(chunk, { stream: true });
+      const lines = text.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            // Store in history
+            let ontology: any = null;
+            if (session) {
+              session.history.push({ role: 'user', content: message });
+              session.history.push({ role: 'assistant', content: fullContent });
+
+              // Extract ontology
+              const jsonMatch = fullContent.match(/```json\s*([\s\S]*?)```/);
+              if (jsonMatch) {
+                try {
+                  ontology = JSON.parse(jsonMatch[1]);
+                  session.currentOntology = ontology;
+                } catch (e) {}
+              }
+            }
+
+            res.write(`data: ${JSON.stringify({ done: true, ontology })}\n\n`);
+            res.end();
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            if (content) {
+              fullContent += content;
+              res.write(`data: ${JSON.stringify({ content })}\n\n`);
+            }
+          } catch (e) {
+            // Ignore parse errors for incomplete chunks
+          }
+        }
+      }
+    });
+
+    reader.on('error', (err: any) => {
+      console.error('[DeepSeek Stream] Error:', err);
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
+    });
+
+  } catch (err: any) {
+    console.error('[DeepSeek Stream] Error:', err);
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
   }
 });
 

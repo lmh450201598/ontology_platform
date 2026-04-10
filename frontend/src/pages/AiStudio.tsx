@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, ConversationResponse } from '@/src/api/client';
+import { streamConversation } from '@/src/api/streamClient';
 import {
   ReactFlow,
   MiniMap,
@@ -101,6 +102,7 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   text: string;
   ontology?: any;
+  streaming?: boolean;
 }
 
 interface ConvRecord {
@@ -304,21 +306,60 @@ export function AiStudio({ data, onUpdate }: { data: OntologyData; onUpdate: (da
     const capturedOntology = previewOntology;
 
     try {
-      const result: ConversationResponse = await api.chat(
+      // 使用流式API
+      let fullResponse = '';
+      let finalOntology: any = null;
+      let isFirstChunk = true;
+
+      // 添加一个临时的assistant消息用于显示流式内容
+      const streamingMsg: ChatMessage = {
+        role: 'assistant',
+        text: '',
+        streaming: true,
+      };
+      setMessages([...newMessages, streamingMsg]);
+
+      for await (const chunk of streamConversation(
         msg,
         capturedSessionId || undefined,
-        !capturedSessionId,
-      );
+        !capturedSessionId
+      )) {
+        // Check if user aborted
+        if (abortController.signal.aborted) {
+          break;
+        }
+
+        if (chunk.error) {
+          throw new Error(chunk.error);
+        }
+
+        if (chunk.content) {
+          fullResponse += chunk.content;
+          // 更新流式消息内容
+          setMessages(prev => {
+            const newMsgs = [...prev];
+            const lastMsg = newMsgs[newMsgs.length - 1];
+            if (lastMsg && lastMsg.role === 'assistant' && lastMsg.streaming) {
+              lastMsg.text = fullResponse;
+            }
+            return newMsgs;
+          });
+        }
+
+        if (chunk.done) {
+          finalOntology = chunk.ontology;
+          break;
+        }
+      }
 
       // If user switched away, update in background and notify
       const isStillActive = activeConvId === capturedConvId;
 
-      setSessionId(result.sessionId);
-
       const assistantMsg: ChatMessage = {
         role: 'assistant',
-        text: result.message,
-        ontology: result.ontology,
+        text: fullResponse,
+        ontology: finalOntology,
+        streaming: false,
       };
       const updatedMessages = [...newMessages, assistantMsg];
 
@@ -328,10 +369,10 @@ export function AiStudio({ data, onUpdate }: { data: OntologyData; onUpdate: (da
       }
 
       let newOntology = capturedOntology;
-      if (result.ontology) {
-        newOntology = result.ontology;
+      if (finalOntology) {
+        newOntology = finalOntology;
         if (isStillActive) {
-          setPreviewOntology(result.ontology);
+          setPreviewOntology(finalOntology);
           setShowPreview(true);
         }
       }

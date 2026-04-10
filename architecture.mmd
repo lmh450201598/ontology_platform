@@ -1,0 +1,140 @@
+graph TB
+    subgraph Frontend["🖥️ Frontend (React + Vite) :3000"]
+        Pages["📄 Pages"]
+        Components["🧩 Components"]
+        Store["🗄️ Store"]
+        APIClient["🔌 API Client"]
+    end
+
+    subgraph BFF["⚙️ BFF (Node.js + Express) :3001"]
+        subgraph BFFRoutes["📡 Routes 路由层"]
+            AIRoute["🤖 ai.ts<br/>POST /suggest-links<br/>POST /suggest-properties<br/>POST /conversation"]
+            Neo4jRoute["🕸️ neo4j.ts<br/>POST /sync/object-types<br/>POST /sync/link-types<br/>GET /overview"]
+            ExplorerRoute["🔍 object-explorer.ts<br/>GET /:id/instances<br/>GET /:id/instances/:id/graph"]
+            FunctionRoute["📦 function-types.ts<br/>CRUD /function-types"]
+            AgentRoute["🤖 agent.ts<br/>POST /analyze<br/>GET /events"]
+            ResearchRoute["🔬 research-agents.ts<br/>POST /create<br/>GET /:id/status"]
+        end
+        
+        Neo4jClient["🔌 Neo4j Client<br/>neo4j.ts"]
+        MySQLPool["🔌 MySQL Pool<br/>db.ts"]
+        Proxy["🔄 Proxy Middleware<br/>http-proxy-middleware"]
+    end
+
+    subgraph Backend["☕ Backend (Java/Spring Boot) :8080"]
+        subgraph Controllers["🎮 Controller 控制层"]
+            OntologyCtrl["📋 OntologyController<br/>/api/ontology"]
+            ObjectTypeCtrl["📦 ObjectTypeController<br/>/api/object-types"]
+            LinkTypeCtrl["🔗 LinkTypeController<br/>/api/link-types"]
+            ActionTypeCtrl["⚡ ActionTypeController<br/>/api/action-types"]
+            FunctionTypeCtrl["🔧 FunctionTypeController<br/>/api/function-types"]
+            IndustryCtrl["🏭 IndustryController<br/>/api/industries"]
+            AICtrl["🤖 AIConversationController<br/>/api/ai/conversations"]
+        end
+        
+        subgraph Services["⚡ Service 业务逻辑层"]
+            OntologySvc["OntologyService<br/>整合对象/链接/动作类型"]
+            IndustrySvc["IndustryService<br/>行业分类管理"]
+        end
+        
+        subgraph Mappers["🗃️ Mapper 数据访问层 (MyBatis)"]
+            ObjectTypeMapper["ObjectTypeMapper"]
+            LinkTypeMapper["LinkTypeMapper"]
+            ActionTypeMapper["ActionTypeMapper"]
+            PropertyMapper["PropertyMapper"]
+            FunctionTypeMapper["FunctionTypeMapper"]
+            IndustryMapper["IndustryMapper"]
+            AIConvMapper["AIConversationMapper"]
+        end
+        
+        subgraph Entities["📋 Entity 实体类"]
+            ObjectType["ObjectType"]
+            LinkType["LinkType"]
+            ActionType["ActionType"]
+            Property["Property"]
+            FunctionType["FunctionType"]
+        end
+    end
+
+    subgraph External["🌐 外部服务"]
+        DeepSeek["🧠 DeepSeek API<br/>api.deepseek.com"]
+    end
+
+    subgraph Database["💾 数据库层"]
+        Neo4jDB["🕸️ Neo4j<br/>图数据库 :7687"]
+        MySQL["🐬 MySQL<br/>关系数据库 :3306"]
+    end
+
+    %% Frontend connections
+    Pages --> APIClient
+    Components --> APIClient
+    Store --> APIClient
+    APIClient -->|HTTP :3001| BFFRoutes
+
+    %% BFF internal flow
+    AIRoute -->|调用| DeepSeek
+    Neo4jRoute -->|Bolt协议| Neo4jClient
+    Neo4jClient --> Neo4jDB
+    
+    ExplorerRoute -->|SQL| MySQLPool
+    FunctionRoute -->|SQL| MySQLPool
+    MySQLPool --> MySQL
+    
+    AgentRoute -->|SQL| MySQLPool
+    ResearchRoute -->|SQL| MySQLPool
+    
+    %% BFF Proxy to Java
+    Proxy -->|转发 /api/object-types<br/>/api/link-types 等| Controllers
+
+    %% Java Controller layer
+    OntologyCtrl --> OntologySvc
+    ObjectTypeCtrl --> ObjectTypeMapper
+    LinkTypeCtrl --> LinkTypeMapper
+    ActionTypeCtrl --> ActionTypeMapper
+    FunctionTypeCtrl --> FunctionTypeMapper
+    IndustryCtrl --> IndustrySvc
+    AICtrl --> AIConvMapper
+    
+    %% Java Service layer
+    OntologySvc --> ObjectTypeMapper
+    OntologySvc --> LinkTypeMapper
+    OntologySvc --> ActionTypeMapper
+    IndustrySvc --> IndustryMapper
+    
+    %% Java Mapper to Entity
+    ObjectTypeMapper --> ObjectType
+    LinkTypeMapper --> LinkType
+    ActionTypeMapper --> ActionType
+    PropertyMapper --> Property
+    FunctionTypeMapper --> FunctionType
+    
+    %% Mapper to Database
+    ObjectTypeMapper -->|JDBC| MySQL
+    LinkTypeMapper -->|JDBC| MySQL
+    ActionTypeMapper -->|JDBC| MySQL
+    PropertyMapper -->|JDBC| MySQL
+    FunctionTypeMapper -->|JDBC| MySQL
+    IndustryMapper -->|JDBC| MySQL
+    AIConvMapper -->|JDBC| MySQL
+
+    %% Styling
+    classDef frontend fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef bff fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef bffRoute fill:#ffe0b2,stroke:#ef6c00,stroke-width:1px
+    classDef backend fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef controller fill:#c8e6c9,stroke:#2e7d32,stroke-width:1px
+    classDef service fill:#a5d6a7,stroke:#1b5e20,stroke-width:1px
+    classDef mapper fill:#81c784,stroke:#0d3b14,stroke-width:1px
+    classDef entity fill:#66bb6a,stroke:#0a2910,stroke-width:1px
+    classDef external fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef database fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+
+    class Pages,Components,Store,APIClient frontend
+    class AIRoute,Neo4jRoute,ExplorerRoute,FunctionRoute,AgentRoute,ResearchRoute bffRoute
+    class Neo4jClient,MySQLPool,Proxy bff
+    class OntologyCtrl,ObjectTypeCtrl,LinkTypeCtrl,ActionTypeCtrl,FunctionTypeCtrl,IndustryCtrl,AICtrl controller
+    class OntologySvc,IndustrySvc service
+    class ObjectTypeMapper,LinkTypeMapper,ActionTypeMapper,PropertyMapper,FunctionTypeMapper,IndustryMapper,AIConvMapper mapper
+    class ObjectType,LinkType,ActionType,Property,FunctionType entity
+    class DeepSeek external
+    class Neo4jDB,MySQL database

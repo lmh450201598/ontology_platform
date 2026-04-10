@@ -9,6 +9,7 @@ import {
 import { Button } from '@/src/components/ui/button';
 import { toast } from 'sonner';
 import { api } from '@/src/api/client';
+import { streamResearchChat } from '@/src/api/streamClient';
 import { cn } from '@/src/lib/utils';
 import { searchStocks, StockItem } from '@/src/data/cnStocks';
 
@@ -462,7 +463,7 @@ function AgentCard({
 
 /* ─── Ontology Q&A Panel ────────────────────────────────────────────────────── */
 const QA_STORAGE_KEY = 'ontology_qa_history';
-interface QAMessage { role: 'user' | 'assistant'; text: string; sources?: { uri: string; title: string }[]; chain?: any[]; entities?: string[]; }
+interface QAMessage { role: 'user' | 'assistant'; text: string; sources?: { uri: string; title: string }[]; chain?: any[]; entities?: string[]; streaming?: boolean; }
 
 function loadQAMessages(): QAMessage[] {
   try {
@@ -480,11 +481,13 @@ function OntologyQAPanel({
   setMessages,
   loading,
   setLoading,
+  agentId,
 }: {
   messages: QAMessage[];
   setMessages: React.Dispatch<React.SetStateAction<QAMessage[]>>;
   loading: boolean;
   setLoading: (v: boolean) => void;
+  agentId: string | null;
 }) {
   const [input, setInput] = useState('');
   const abortRef = useRef<AbortController | null>(null);
@@ -509,21 +512,56 @@ function OntologyQAPanel({
 
   const send = async (q?: string) => {
     const question = (q || input).trim();
-    if (!question || loading) return;
+    if (!question || loading || !agentId) return;
     setInput('');
     addMessages(prev => [...prev, { role: 'user', text: question }]);
     setLoading(true);
 
     abortRef.current = new AbortController();
     try {
-      const res = await api.ontologyQA(question);
-      addMessages(prev => [...prev, {
-        role: 'assistant',
-        text: res.answer,
-        sources: res.sources,
-        chain: res.reasoning_chain,
-        entities: res.key_entities,
-      }]);
+      let fullResponse = '';
+      
+      // 添加一个临时的assistant消息用于显示流式内容
+      addMessages(prev => [...prev, { role: 'assistant', text: '', streaming: true }]);
+
+      for await (const chunk of streamResearchChat(agentId, question)) {
+        // Check if aborted
+        if (abortRef.current?.signal.aborted) {
+          break;
+        }
+
+        if (chunk.error) {
+          throw new Error(chunk.error);
+        }
+
+        if (chunk.content) {
+          fullResponse += chunk.content;
+          // 更新流式消息内容
+          addMessages(prev => {
+            const newMsgs = [...prev];
+            const lastMsg = newMsgs[newMsgs.length - 1];
+            if (lastMsg && lastMsg.role === 'assistant' && lastMsg.streaming) {
+              lastMsg.text = fullResponse;
+            }
+            return newMsgs;
+          });
+        }
+
+        if (chunk.done) {
+          break;
+        }
+      }
+
+      // 完成流式输出，更新最终消息
+      addMessages(prev => {
+        const newMsgs = [...prev];
+        const lastMsg = newMsgs[newMsgs.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant') {
+          lastMsg.streaming = false;
+          lastMsg.text = fullResponse;
+        }
+        return newMsgs;
+      });
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         addMessages(prev => [...prev, { role: 'assistant', text: `Error: ${err.message}` }]);
@@ -795,6 +833,7 @@ export function AgentStudio() {
           setMessages={setQaMessages}
           loading={qaLoading}
           setLoading={setQaLoading}
+          agentId={selectedId}
         />
       </div>
 

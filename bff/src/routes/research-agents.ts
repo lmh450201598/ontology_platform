@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 
 const router = Router();
 const MODEL = 'deepseek-chat';
@@ -313,6 +314,129 @@ ${events.map((e: any, i: number) => `${i + 1}. 【${e.impact_level}】${e.title}
     res.json({ success: true, events: savedEvents, analysis });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// 流式产业链智能问答API
+router.post('/:id/chat/stream', async (req, res) => {
+  if (!checkAI()) {
+    return res.status(503).json({ error: 'DEEPSEEK_API_KEY not configured' });
+  }
+
+  try {
+    const { message } = req.body;
+    const agentId = req.params.id;
+
+    // Get agent info from Java backend
+    const agentResponse = await fetch(`${JAVA_BACKEND}/api/research-agents/${agentId}`);
+    if (!agentResponse.ok) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    const agentData = await agentResponse.json();
+    const agent = agentData.agent;
+
+    // Get ontology from Java backend
+    const ontologyResponse = await fetch(`${JAVA_BACKEND}/api/ontology`);
+    const ontology = await ontologyResponse.json();
+    const ontologyContext = JSON.stringify(ontology, null, 2);
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    const chatPrompt = `${RESEARCH_SYSTEM_PROMPT}
+
+你正在跟踪: ${agent.targetCompany}（行业: ${agent.targetIndustry}）
+${agent.analysisFocus ? `重点关注: ${agent.analysisFocus}` : ''}
+今天日期: ${today}
+
+当前本体定义（包含产业链语义关系）：
+${ontologyContext}
+
+用户问题: ${message}
+
+请基于本体论框架，对用户的产业链相关问题进行深入分析。回答要专业、结构化，并体现产业链传导逻辑。`;
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Call DeepSeek with streaming
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2分钟超时
+
+    const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: 'user', content: chatPrompt }],
+        temperature: 0.7,
+        max_tokens: 4096,
+        stream: true,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const error = await response.text();
+      res.write(`data: ${JSON.stringify({ error: `DeepSeek API error: ${error}` })}\n\n`);
+      res.end();
+      return;
+    }
+
+    // Process stream
+    const reader = response.body;
+    if (!reader) {
+      res.write(`data: ${JSON.stringify({ error: 'No response body' })}\n\n`);
+      res.end();
+      return;
+    }
+
+    let fullContent = '';
+    const decoder = new TextDecoder();
+
+    reader.on('data', (chunk: Buffer) => {
+      const text = decoder.decode(chunk, { stream: true });
+      const lines = text.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            res.write(`data: ${JSON.stringify({ done: true, fullContent })}\n\n`);
+            res.end();
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            if (content) {
+              fullContent += content;
+              res.write(`data: ${JSON.stringify({ content })}\n\n`);
+            }
+          } catch (e) {
+            // Ignore parse errors for incomplete chunks
+          }
+        }
+      }
+    });
+
+    reader.on('error', (err: any) => {
+      console.error('[Research Stream] Error:', err);
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
+    });
+
+  } catch (err: any) {
+    console.error('[Research Chat Stream] Error:', err);
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
   }
 });
 
