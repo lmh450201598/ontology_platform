@@ -29,7 +29,7 @@ const apiProxy = createProxyMiddleware({
 // Proxy non-AI routes to Java backend (before body parsing)
 app.use('/api', (req, res, next) => {
   const path = req.path;
-  if (path.startsWith('/ai/') || path.startsWith('/agent/') || path.startsWith('/research-agents/') || path.startsWith('/object-explorer/') || path.startsWith('/function-types')) {
+  if (path.startsWith('/ai/') || path.startsWith('/agent/') || path.startsWith('/research-agents/') || path.startsWith('/object-explorer/') || path.startsWith('/function-types') || path.startsWith('/neo4j/')) {
     return next();
   }
   return apiProxy(req, res, next);
@@ -44,6 +44,8 @@ import agentRoutes from './routes/agent.js';
 import researchAgentRoutes from './routes/research-agents.js';
 import objectExplorerRoutes from './routes/object-explorer.js';
 import functionTypeRoutes from './routes/function-types.js';
+import neo4jRoutes from './routes/neo4j.js';
+import { initNeo4j, closeNeo4j } from './neo4j.js';
 
 // Body parsers only for AI routes
 app.use('/api/ai', express.json({ limit: '10mb' }));
@@ -56,6 +58,8 @@ app.use('/api/object-explorer', express.json({ limit: '10mb' }));
 app.use('/api/object-explorer', objectExplorerRoutes);
 app.use('/api/function-types', express.json({ limit: '10mb' }));
 app.use('/api/function-types', functionTypeRoutes);
+app.use('/api/neo4j', express.json({ limit: '10mb' }));
+app.use('/api/neo4j', neo4jRoutes);
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Static Files (Frontend) ───────────────────────────────────────────────────
@@ -73,8 +77,18 @@ app.get('*', (req, res) => {
 // ── Start Server ──────────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 BFF Server running at http://localhost:${PORT}`);
   console.log(`   Java Backend: ${JAVA_BACKEND_URL}`);
   console.log(`   Frontend: ${frontendDist}`);
+  
+  // 初始化Neo4j连接
+  await initNeo4j();
+});
+
+// 优雅关闭
+process.on('SIGINT', async () => {
+  console.log('\n正在关闭服务...');
+  await closeNeo4j();
+  process.exit(0);
 });

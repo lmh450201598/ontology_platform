@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 
 const router = Router();
 const MODEL = 'deepseek-chat';
