@@ -90,6 +90,7 @@ export function ObjectExplorer({ data }: ObjectExplorerProps) {
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: GraphLink[] } | null>(null);
   const [graphLoading, setGraphLoading] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
+  const [selectedGraphNode, setSelectedGraphNode] = useState<GraphNode | null>(null);
 
   // 获取对象类型实例数据并计算属性统计
   const fetchInstances = useCallback(async (objectTypeId: string) => {
@@ -269,17 +270,7 @@ export function ObjectExplorer({ data }: ObjectExplorerProps) {
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(60));
   
-    // 绘制链接线 - 使用过滤后的有效链接
-    const link = g.append('g')
-      .selectAll('line')
-      .data(validLinks)
-      .join('line')
-      .attr('stroke', '#999')
-      .attr('stroke-opacity', 0.6)
-      .attr('stroke-width', 2)
-      .attr('marker-end', 'url(#arrowhead)');
-
-    // 添加箭头标记
+    // 添加箭头标记 - 只用于下游关系
     svg.append('defs').append('marker')
       .attr('id', 'arrowhead')
       .attr('viewBox', '-10 -5 10 10')
@@ -291,6 +282,16 @@ export function ObjectExplorer({ data }: ObjectExplorerProps) {
       .append('path')
       .attr('d', 'M-10,-5L0,0L-10,5')
       .attr('fill', '#999');
+
+    // 绘制链接线 - 只在下游关系显示箭头
+    const link = g.append('g')
+      .selectAll('line')
+      .data(validLinks)
+      .join('line')
+      .attr('stroke', '#999')
+      .attr('stroke-opacity', 0.6)
+      .attr('stroke-width', 2)
+      .attr('marker-end', d => d.direction === 'downstream' ? 'url(#arrowhead)' : null);
 
     // 绘制节点组
     const node = g.append('g')
@@ -312,7 +313,11 @@ export function ObjectExplorer({ data }: ObjectExplorerProps) {
           if (!event.active) simulation.alphaTarget(0);
           d.fx = null;
           d.fy = null;
-        }));
+        }))
+      .on('click', (event: MouseEvent, d: GraphNode) => {
+        event.stopPropagation();
+        setSelectedGraphNode(d);
+      });
 
     // 节点背景圆
     node.append('rect')
@@ -743,25 +748,66 @@ export function ObjectExplorer({ data }: ObjectExplorerProps) {
                 )}
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
-                {graphLoading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                <div className="flex h-full">
+                  {/* Graph SVG */}
+                  <div className="flex-1 relative">
+                    {graphLoading ? (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                      </div>
+                    ) : graphData && graphData.nodes.length > 0 ? (
+                      <svg
+                        ref={svgRef}
+                        className="w-full h-full"
+                        style={{ background: '#f8fafc' }}
+                        onClick={() => setSelectedGraphNode(null)}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-slate-500">
+                        <div className="text-center">
+                          <Network className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>暂无关系数据</p>
+                          <p className="text-sm text-slate-400 mt-2">该实例可能没有关联的上下游关系</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ) : graphData && graphData.nodes.length > 0 ? (
-                  <svg
-                    ref={svgRef}
-                    className="w-full h-full"
-                    style={{ background: '#f8fafc' }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-slate-500">
-                    <div className="text-center">
-                      <Network className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>暂无关系数据</p>
-                      <p className="text-sm text-slate-400 mt-2">该实例可能没有关联的上下游关系</p>
+
+                  {/* Node Detail Panel */}
+                  {selectedGraphNode && (
+                    <div className="w-72 border-l border-slate-200 bg-white flex flex-col">
+                      <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold text-slate-900">实例详情</h3>
+                          <p className="text-xs text-slate-500 mt-0.5">{selectedGraphNode.objectTypeName}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => setSelectedGraphNode(null)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-4">
+                        <div className="space-y-3">
+                          {selectedGraphNode.data && Object.entries(selectedGraphNode.data).map(([key, value]) => (
+                            <div key={key} className="text-sm">
+                              <span className="text-slate-500">{key}:</span>
+                              <span className="ml-2 text-slate-900 font-medium break-all">
+                                {value !== null && value !== undefined ? String(value) : '-'}
+                              </span>
+                            </div>
+                          ))}
+                          {(!selectedGraphNode.data || Object.keys(selectedGraphNode.data).length === 0) && (
+                            <p className="text-sm text-slate-400 text-center py-4">无属性数据</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           ) : null}

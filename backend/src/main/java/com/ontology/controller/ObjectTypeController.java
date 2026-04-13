@@ -24,6 +24,7 @@ public class ObjectTypeController {
 
     @PostMapping
     public Map<String, Object> create(@RequestBody ObjectType objectType) {
+        objectType.setStatus("pending"); // 新建对象类型默认待审核
         objectTypeMapper.insert(objectType);
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);

@@ -1,91 +1,211 @@
 package com.ontology.controller;
 
-import com.ontology.entity.ActionParameter;
-import com.ontology.entity.ActionRule;
-import com.ontology.entity.ActionType;
-import com.ontology.mapper.ActionParameterMapper;
-import com.ontology.mapper.ActionRuleMapper;
-import com.ontology.mapper.ActionTypeMapper;
-import com.ontology.service.OntologyService;
+import com.ontology.entity.*;
+import com.ontology.mapper.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/action-types")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class ActionTypeController {
-
+    
     private final ActionTypeMapper actionTypeMapper;
-    private final ActionParameterMapper actionParameterMapper;
     private final ActionRuleMapper actionRuleMapper;
-    private final OntologyService ontologyService;
-
+    private final ActionRuleParamMapper actionRuleParamMapper;
+    private final ActionEffectMapper actionEffectMapper;
+    private final OntologyRuleMapper ontologyRuleMapper;
+    private final FunctionTypeMapper functionTypeMapper;
+    
+    @GetMapping
+    public Map<String, Object> list() {
+        List<ActionType> list = actionTypeMapper.selectAllActive();
+        
+        // 加载规则和副作用
+        for (ActionType at : list) {
+            loadRulesAndEffects(at);
+        }
+        
+        return Map.of("success", true, "actionTypes", list);
+    }
+    
+    @GetMapping("/{id}")
+    public Map<String, Object> getById(@PathVariable String id) {
+        ActionType at = actionTypeMapper.selectById(id);
+        if (at == null) {
+            return Map.of("success", false, "error", "Action type not found");
+        }
+        loadRulesAndEffects(at);
+        return Map.of("success", true, "actionType", at);
+    }
+    
     @PostMapping
-    public Map<String, Object> create(@RequestBody Map<String, Object> request) {
-        ActionType actionType = new ActionType();
-        actionType.setId((String) request.get("id"));
-        actionType.setName((String) request.get("name"));
-        actionType.setDescription((String) request.get("description"));
-        actionType.setTargetObjectId((String) request.get("targetObjectId"));
-        actionTypeMapper.insert(actionType);
-
-        // Insert parameters
-        List<Map<String, Object>> parameters = (List<Map<String, Object>>) request.get("parameters");
-        if (parameters != null) {
-            for (int i = 0; i < parameters.size(); i++) {
-                Map<String, Object> p = parameters.get(i);
-                ActionParameter param = new ActionParameter();
-                param.setId(actionType.getId() + "_p_" + i);
-                param.setActionTypeId(actionType.getId());
-                param.setName((String) p.get("name"));
-                param.setType((String) p.getOrDefault("type", "string"));
-                param.setRequired((Boolean) p.getOrDefault("required", false) ? 1 : 0);
-                param.setSortOrder(i);
-                actionParameterMapper.insert(param);
-            }
+    @Transactional
+    public Map<String, Object> create(@RequestBody Map<String, Object> data) {
+        String displayName = (String) data.get("displayName");
+        if (displayName == null || displayName.isEmpty()) {
+            return Map.of("success", false, "error", "Display name is required");
         }
-
-        // Insert rules
-        List<Map<String, Object>> rules = (List<Map<String, Object>>) request.get("rules");
-        if (rules != null) {
-            for (int i = 0; i < rules.size(); i++) {
-                Map<String, Object> r = rules.get(i);
-                ActionRule rule = new ActionRule();
-                rule.setId(actionType.getId() + "_r_" + i);
-                rule.setActionTypeId(actionType.getId());
-                rule.setType((String) r.get("type"));
-                rule.setDescription((String) r.get("description"));
-                actionRuleMapper.insert(rule);
-            }
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("data", ontologyService.buildOntologyData());
-        return result;
+        
+        ActionType at = new ActionType();
+        at.setId("act_" + System.currentTimeMillis());
+        at.setDisplayName(displayName);
+        at.setDescription((String) data.get("description"));
+        at.setStatus("ACTIVE");
+        at.setCreatedAt(LocalDateTime.now());
+        at.setUpdatedAt(LocalDateTime.now());
+        
+        actionTypeMapper.insert(at);
+        
+        // 保存规则
+        saveRules(at.getId(), data);
+        
+        // 保存副作用
+        saveEffects(at.getId(), data);
+        
+        return Map.of("success", true, "actionType", at);
     }
-
+    
     @PutMapping("/{id}")
-    public Map<String, Object> update(@PathVariable String id, @RequestBody ActionType actionType) {
-        actionType.setId(id);
-        actionTypeMapper.updateById(actionType);
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("data", ontologyService.buildOntologyData());
-        return result;
+    @Transactional
+    public Map<String, Object> update(@PathVariable String id, @RequestBody Map<String, Object> data) {
+        ActionType at = actionTypeMapper.selectById(id);
+        if (at == null) {
+            return Map.of("success", false, "error", "Action type not found");
+        }
+        
+        if (data.containsKey("displayName")) at.setDisplayName((String) data.get("displayName"));
+        if (data.containsKey("description")) at.setDescription((String) data.get("description"));
+        if (data.containsKey("status")) at.setStatus((String) data.get("status"));
+        at.setUpdatedAt(LocalDateTime.now());
+        
+        actionTypeMapper.updateById(at);
+        
+        // 更新规则
+        if (data.containsKey("rules")) {
+            actionRuleParamMapper.deleteByActionTypeId(id);
+            actionRuleMapper.deleteByActionTypeId(id);
+            saveRules(id, data);
+        }
+        
+        // 更新副作用
+        if (data.containsKey("effects")) {
+            actionEffectMapper.deleteByActionTypeId(id);
+            saveEffects(id, data);
+        }
+        
+        return Map.of("success", true, "actionType", at);
     }
-
+    
     @DeleteMapping("/{id}")
+    @Transactional
     public Map<String, Object> delete(@PathVariable String id) {
-        actionTypeMapper.deleteById(id);
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("data", ontologyService.buildOntologyData());
-        return result;
+        // 软删除
+        ActionType at = new ActionType();
+        at.setId(id);
+        at.setStatus("DISABLED");
+        at.setUpdatedAt(LocalDateTime.now());
+        actionTypeMapper.updateById(at);
+        
+        return Map.of("success", true);
+    }
+    
+    private void loadRulesAndEffects(ActionType at) {
+        // 加载规则
+        List<ActionRule> rules = actionRuleMapper.selectByActionTypeId(at.getId());
+        for (ActionRule rule : rules) {
+            // 加载参数
+            List<ActionRuleParam> params = actionRuleParamMapper.selectByActionRuleId(rule.getId());
+            rule.setParams(params);
+            
+            // 加载关联信息
+            if ("ONTOLOGY".equals(rule.getRuleType()) && rule.getOntologyRuleId() != null) {
+                OntologyRule or = ontologyRuleMapper.selectById(rule.getOntologyRuleId());
+                if (or != null) {
+                    rule.setOntologyRuleName(or.getFunctionName());
+                    rule.setOntologyRuleDescription(or.getFunctionDescription());
+                }
+            } else if ("OTHER".equals(rule.getRuleType()) && rule.getFunctionTypeId() != null) {
+                FunctionType ft = functionTypeMapper.selectById(rule.getFunctionTypeId());
+                if (ft != null) {
+                    rule.setFunctionTypeName(ft.getName());
+                    rule.setFunctionTypeCode(ft.getCode());
+                }
+            }
+        }
+        at.setRules(rules);
+        
+        // 加载副作用
+        List<ActionEffect> effects = actionEffectMapper.selectByActionTypeId(at.getId());
+        at.setEffects(effects);
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void saveRules(String actionTypeId, Map<String, Object> data) {
+        List<Map<String, Object>> rules = (List<Map<String, Object>>) data.get("rules");
+        if (rules == null) return;
+        
+        int sortOrder = 0;
+        for (Map<String, Object> ruleData : rules) {
+            ActionRule rule = new ActionRule();
+            rule.setId("ar_" + System.currentTimeMillis() + "_" + sortOrder);
+            rule.setActionTypeId(actionTypeId);
+            rule.setRuleType((String) ruleData.get("ruleType"));
+            rule.setOntologyRuleCategory((String) ruleData.get("ontologyRuleCategory"));
+            rule.setOntologyRuleId((String) ruleData.get("ontologyRuleId"));
+            rule.setFunctionTypeId((String) ruleData.get("functionTypeId"));
+            rule.setSortOrder(sortOrder++);
+            rule.setCreatedAt(LocalDateTime.now());
+            
+            actionRuleMapper.insert(rule);
+            
+            // 保存参数
+            List<Map<String, Object>> params = (List<Map<String, Object>>) ruleData.get("params");
+            if (params != null) {
+                int paramSort = 0;
+                for (Map<String, Object> paramData : params) {
+                    ActionRuleParam param = new ActionRuleParam();
+                    param.setId("arp_" + System.currentTimeMillis() + "_" + paramSort);
+                    param.setActionRuleId(rule.getId());
+                    param.setParamName((String) paramData.get("paramName"));
+                    param.setParamValue((String) paramData.get("paramValue"));
+                    param.setSortOrder(paramSort++);
+                    actionRuleParamMapper.insert(param);
+                }
+            }
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void saveEffects(String actionTypeId, Map<String, Object> data) {
+        List<Map<String, Object>> effects = (List<Map<String, Object>>) data.get("effects");
+        if (effects == null) return;
+        
+        int sortOrder = 0;
+        for (Map<String, Object> effectData : effects) {
+            ActionEffect effect = new ActionEffect();
+            effect.setId("ae_" + System.currentTimeMillis() + "_" + sortOrder);
+            effect.setActionTypeId(actionTypeId);
+            effect.setEffectType((String) effectData.get("effectType"));
+            effect.setContent((String) effectData.get("content"));
+            // 处理isEnabled：可能是Boolean或Integer
+            Object isEnabledObj = effectData.get("isEnabled");
+            int isEnabled = 1;
+            if (isEnabledObj instanceof Boolean) {
+                isEnabled = (Boolean) isEnabledObj ? 1 : 0;
+            } else if (isEnabledObj instanceof Integer) {
+                isEnabled = (Integer) isEnabledObj;
+            } else if (isEnabledObj instanceof Number) {
+                isEnabled = ((Number) isEnabledObj).intValue();
+            }
+            effect.setIsEnabled(isEnabled);
+            effect.setSortOrder(sortOrder++);
+            actionEffectMapper.insert(effect);
+        }
     }
 }

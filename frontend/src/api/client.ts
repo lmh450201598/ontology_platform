@@ -111,29 +111,38 @@ export const api = {
     }),
 
   // ── Action Types ───────────────────────────────────────────────────────────
+  getActionTypes: () =>
+    request<{ success: boolean; actionTypes: any[] }>('/action-types'),
+
   createActionType: (data: {
-    id: string; name: string; description?: string; targetObjectId: string;
-    parameters?: any[]; rules?: any[];
+    displayName: string;
+    description?: string;
+    rules?: any[];
+    effects?: any[];
   }) =>
-    request<{ success: boolean; data: OntologyData }>('/action-types', {
+    request<{ success: boolean; actionType: any }>('/action-types', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   updateActionType: (id: string, data: Partial<{
-    name: string; description: string; targetObjectId: string;
+    displayName: string;
+    description: string;
+    status: string;
+    rules?: any[];
+    effects?: any[];
   }>) =>
-    request<{ success: boolean; data: OntologyData }>(`/action-types/${id}`, {
+    request<{ success: boolean; actionType: any }>(`/action-types/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
 
   deleteActionType: (id: string) =>
-    request<{ success: boolean; data: OntologyData }>(`/action-types/${id}`, {
+    request<{ success: boolean }>(`/action-types/${id}`, {
       method: 'DELETE',
     }),
 
-  executeAction: (actionTypeId: string, parameters: Record<string, any>, executedBy = 'user') =>
+  executeAction: (actionTypeId: string, parameters: Record<string, any>, executedBy = 'user', instanceId?: string) =>
     request<{
       executionId: string;
       status: string;
@@ -142,7 +151,7 @@ export const api = {
       validationErrors?: string[];
     }>(`/action-types/${actionTypeId}/execute`, {
       method: 'POST',
-      body: JSON.stringify({ parameters, executedBy }),
+      body: JSON.stringify({ parameters, executedBy, instanceId }),
     }),
 
   getActionExecutions: (actionTypeId: string) =>
@@ -306,29 +315,43 @@ export const api = {
     ),
 
   // ── Function Types ──────────────────────────────────────────────────────────
-  getFunctionTypes: () =>
-    request<{ success: boolean; functions: any[] }>('/function-types'),
+  getFunctionTypes: (category?: string) =>
+    request<{ success: boolean; functions: FunctionType[] }>(`/function-types${category ? `?category=${category}` : ''}`),
+
+  getFunctionType: (id: string) =>
+    request<{ success: boolean; function: FunctionType }>(`/function-types/${id}`),
 
   createFunctionType: (data: {
+    code: string;
     name: string;
-    restRoute: string;
     description?: string;
-    inputParams?: any[];
-    outputParams?: any[];
+    category: string;
+    interfaceType?: string;
+    requestMethod?: string;
+    interfaceUrl?: string;
+    implementationType?: string;
+    inputParams?: FunctionParam[];
+    outputParams?: FunctionParam[];
   }) =>
-    request<{ success: boolean; data: any }>('/function-types', {
+    request<{ success: boolean; function: FunctionType }>('/function-types', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   updateFunctionType: (id: string, data: Partial<{
+    code: string;
     name: string;
-    restRoute: string;
     description: string;
-    inputParams: any[];
-    outputParams: any[];
+    category: string;
+    interfaceType: string;
+    requestMethod: string;
+    interfaceUrl: string;
+    implementationType: string;
+    status: string;
+    inputParams: FunctionParam[];
+    outputParams: FunctionParam[];
   }>) =>
-    request<{ success: boolean; data: any }>(`/function-types/${id}`, {
+    request<{ success: boolean; function: FunctionType }>(`/function-types/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
@@ -337,4 +360,155 @@ export const api = {
     request<{ success: boolean }>(`/function-types/${id}`, {
       method: 'DELETE',
     }),
+
+  executeFunctionType: (id: string, parameters: Record<string, any>) =>
+    request<{
+      functionTypeId: string;
+      functionName: string;
+      functionCode: string;
+      parameters: Record<string, any>;
+      status: string;
+      response?: any;
+      error?: string;
+    }>(`/function-types/${id}/execute`, {
+      method: 'POST',
+      body: JSON.stringify(parameters),
+    }),
+
+  // ── Instance Relations ────────────────────────────────────────────────────
+  getInstanceRelations: (objectTypeId: string, instanceId: string, depth = 3) =>
+    request<{ success: boolean; data: { centerNode: any; nodes: any[]; links: any[]; totalNodes: number; totalLinks: number } }>(
+      `/instances/${objectTypeId}/${encodeURIComponent(instanceId)}/relations?depth=${depth}`
+    ),
+
+  // ── Review (审核) ─────────────────────────────────────────────────────────
+  getPendingReviews: (page = 1, pageSize = 10) =>
+    request<{
+      objectTypes: any[];
+      linkTypes: any[];
+      totalObjectTypes: number;
+      totalLinkTypes: number;
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/review/pending?page=${page}&pageSize=${pageSize}`),
+
+  getPendingReviewCount: () =>
+    request<{ total: number; objectTypes: number; linkTypes: number }>('/review/count'),
+
+  approveObjectType: (id: string) =>
+    request<{ success: boolean; message: string; data: any }>(`/review/object-types/${id}/approve`, {
+      method: 'POST',
+    }),
+
+  rejectObjectType: (id: string) =>
+    request<{ success: boolean; message: string; data: any }>(`/review/object-types/${id}/reject`, {
+      method: 'POST',
+    }),
+
+  approveLinkType: (id: string) =>
+    request<{ success: boolean; message: string; data: any }>(`/review/link-types/${id}/approve`, {
+      method: 'POST',
+    }),
+
+  rejectLinkType: (id: string) =>
+    request<{ success: boolean; message: string; data: any }>(`/review/link-types/${id}/reject`, {
+      method: 'POST',
+    }),
+
+  // ── Ontology Rules ─────────────────────────────────────────────────────────
+  getOntologyRules: (category?: string) =>
+    request<{ rules: any[] }>(category ? `/ontology-rules?category=${category}` : '/ontology-rules'),
+
+  getOntologyRule: (id: string) =>
+    request<{ rule: any }>(`/ontology-rules/${id}`),
+
+  createOntologyRule: (data: any) =>
+    request<{ success: boolean; rule: any }>('/ontology-rules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateOntologyRule: (id: string, data: any) =>
+    request<{ success: boolean; rule: any }>(`/ontology-rules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteOntologyRule: (id: string) =>
+    request<{ success: boolean }>(`/ontology-rules/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+  getNotifications: (status?: string, limit?: number, offset?: number) =>
+    request<{ success: boolean; notifications: Notification[]; total: number }>(
+      `/notifications?${status ? `status=${status}&` : ''}limit=${limit || 20}&offset=${offset || 0}`
+    ),
+
+  getUnreadCount: () =>
+    request<{ success: boolean; count: number }>('/notifications/unread-count'),
+
+  markNotificationRead: (id: string) =>
+    request<{ success: boolean; message: string }>(`/notifications/${id}/read`, {
+      method: 'PUT',
+    }),
+
+  markAllNotificationsRead: () =>
+    request<{ success: boolean; message: string }>('/notifications/read-all', {
+      method: 'PUT',
+    }),
+
+  createNotification: (data: Partial<Notification>) =>
+    request<{ success: boolean; notification: Notification }>('/notifications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
+
+// Notification type definition
+export interface Notification {
+  id: string;
+  title: string;
+  content: string;
+  type: 'SYSTEM' | 'APPROVAL' | 'EXECUTION' | 'DATASET';
+  status: 'UNREAD' | 'READ';
+  userId?: string;
+  relatedObjectType?: string;
+  relatedObjectId?: string;
+  actionUrl?: string;
+  readAt?: string;
+  createdAt: string;
+}
+
+// Function Type definitions
+export interface FunctionParam {
+  id?: string;
+  functionId?: string;
+  paramDirection?: 'INPUT' | 'OUTPUT';
+  paramName: string;
+  paramCode: string;
+  paramType: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  isRequired?: number;
+  defaultValue?: string;
+  description?: string;
+  sortOrder?: number;
+  sourceType?: 'USER_INPUT' | 'SYSTEM_AUTO' | 'CONTEXT';
+}
+
+export interface FunctionType {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  category: 'QUERY' | 'CREATE' | 'UPDATE' | 'DELETE' | 'ANALYZE';
+  interfaceType?: 'RESTFUL' | 'DUBBO' | 'INTERNAL';
+  requestMethod?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  interfaceUrl?: string;
+  implementationType?: 'JAVA' | 'BFF' | 'SQL';
+  status?: 'ACTIVE' | 'DISABLED';
+  createdAt?: string;
+  updatedAt?: string;
+  inputParams?: FunctionParam[];
+  outputParams?: FunctionParam[];
+}

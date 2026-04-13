@@ -30,17 +30,25 @@ const ObjectTypeNode = ({ data }: NodeProps) => {
   const color = data.color as string || '#3b82f6';
   const properties = data.properties as any[] || [];
   const selected = data.selected as boolean;
+  const status = data.status as string;
+  const isPending = status === 'pending';
 
   return (
     <div
-      className="shadow-lg rounded-xl bg-white min-w-[220px] max-w-[260px] transition-all"
+      className="shadow-lg rounded-xl min-w-[220px] max-w-[260px] transition-all relative"
       style={{
         borderWidth: 2,
-        borderStyle: 'solid',
-        borderColor: selected ? color : '#e2e8f0',
+        borderStyle: isPending ? 'dashed' : 'solid',
+        borderColor: isPending ? '#9ca3af' : (selected ? color : '#e2e8f0'),
         boxShadow: selected ? `0 0 0 3px ${color}33` : undefined,
+        backgroundColor: isPending ? '#f9fafb' : 'white',
       }}
     >
+      {isPending && (
+        <div className="absolute -top-2 -right-2 bg-amber-100 text-amber-700 text-[9px] px-1.5 py-0.5 rounded-full border border-amber-200 font-medium">
+          待审核
+        </div>
+      )}
       <Handle type="target" position={Position.Top} id="top" className="w-2 h-2" style={{ background: color }} />
       <Handle type="target" position={Position.Left} id="left" className="w-2 h-2" style={{ background: color }} />
 
@@ -114,6 +122,7 @@ function layoutGraph(objectTypes: ObjectType[], linkTypes: LinkType[]) {
         properties: ot.properties,
         color: getColor(i),
         selected: false,
+        status: ot.status,
       },
     };
   });
@@ -261,14 +270,20 @@ export function GraphView({ data }: { data: OntologyData }) {
     return data.linkTypes.map(lt => {
       const srcIdx = data.objectTypes.findIndex(o => o.id === lt.sourceObjectId);
       const color = getColor(srcIdx >= 0 ? srcIdx : 0);
+      const isPending = lt.status === 'pending';
       return {
         id: lt.id,
         source: lt.sourceObjectId,
         target: lt.targetObjectId,
-        label: `${lt.name} (${lt.cardinality})`,
-        animated: true,
-        style: { stroke: color, strokeWidth: 2, opacity: 0.7 },
-        labelStyle: { fill: '#475569', fontWeight: 500, fontSize: 11 },
+        label: `${lt.name} (${lt.cardinality})${isPending ? ' [待审核]' : ''}`,
+        animated: !isPending,
+        style: {
+          stroke: isPending ? '#9ca3af' : color,
+          strokeWidth: 2,
+          opacity: 0.7,
+          strokeDasharray: isPending ? '5,5' : undefined,
+        },
+        labelStyle: { fill: isPending ? '#9ca3af' : '#475569', fontWeight: 500, fontSize: 11 },
         labelBgStyle: { fill: '#ffffff', fillOpacity: 0.95 },
         labelBgPadding: [6, 3] as [number, number],
         labelBgBorderRadius: 4,
@@ -339,6 +354,17 @@ export function GraphView({ data }: { data: OntologyData }) {
           <div className="flex items-center gap-1.5 text-slate-500">
             <LinkIcon className="w-3.5 h-3.5 text-emerald-500" />
             <span>{data.linkTypes.length} 个关系</span>
+          </div>
+          {/* 图例 */}
+          <div className="flex items-center gap-4 ml-4 pl-4 border-l border-slate-200">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <div className="w-4 h-3 border-2 border-slate-300 rounded" style={{ borderStyle: 'solid' }}></div>
+              <span>已生效</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <div className="w-4 h-3 border-2 border-slate-400 rounded bg-slate-100" style={{ borderStyle: 'dashed' }}></div>
+              <span>待审核</span>
+            </div>
           </div>
         </div>
       </div>

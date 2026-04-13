@@ -434,6 +434,7 @@ export function LinkTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (d
               <TableHead>链接类型 ID</TableHead>
               <TableHead>关系</TableHead>
               <TableHead>基数</TableHead>
+              <TableHead>状态</TableHead>
               <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -464,6 +465,13 @@ export function LinkTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (d
                       {lt.cardinality}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    {lt.status === 'pending' ? (
+                      <Badge variant="outline" className="border-amber-200 text-amber-600 bg-amber-50">待审核</Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50">已生效</Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400 hover:text-blue-600 hover:bg-blue-50"
                       onClick={() => handleEdit(lt)}>
@@ -479,7 +487,7 @@ export function LinkTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (d
             })}
             {filteredLinkTypes.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-slate-500">未找到链接类型。</TableCell>
+                <TableCell colSpan={6} className="h-24 text-center text-slate-500">未找到链接类型。</TableCell>
               </TableRow>
             )}
           </TableBody>

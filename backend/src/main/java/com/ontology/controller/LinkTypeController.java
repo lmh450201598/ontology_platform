@@ -20,6 +20,7 @@ public class LinkTypeController {
 
     @PostMapping
     public Map<String, Object> create(@RequestBody LinkType linkType) {
+        linkType.setStatus("pending"); // 新建链接类型默认待审核
         linkTypeMapper.insert(linkType);
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);

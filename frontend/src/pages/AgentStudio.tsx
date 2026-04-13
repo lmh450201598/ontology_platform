@@ -302,6 +302,25 @@ function EventTimeline({ events }: { events: AgentEvent[] }) {
 function AnalysisReport({ analysis }: { analysis: AgentAnalysis }) {
   const [expanded, setExpanded] = useState(true);
 
+  // 安全解析数组字段（后端可能返回 JSON 字符串）
+  const keyFindings = (() => {
+    try {
+      if (!analysis.key_findings) return [];
+      if (Array.isArray(analysis.key_findings)) return analysis.key_findings;
+      if (typeof analysis.key_findings === 'string') return JSON.parse(analysis.key_findings);
+      return [];
+    } catch { return []; }
+  })();
+
+  const impactChain = (() => {
+    try {
+      if (!analysis.impact_chain) return [];
+      if (Array.isArray(analysis.impact_chain)) return analysis.impact_chain;
+      if (typeof analysis.impact_chain === 'string') return JSON.parse(analysis.impact_chain);
+      return [];
+    } catch { return []; }
+  })();
+
   return (
     <div className="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
       {/* Header */}
@@ -318,13 +337,13 @@ function AnalysisReport({ analysis }: { analysis: AgentAnalysis }) {
       {expanded && (
         <div className="p-5 space-y-5">
           {/* Key Findings */}
-          {analysis.key_findings.length > 0 && (
+          {keyFindings.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5 text-amber-500" /> Key Findings
               </h4>
               <div className="space-y-1.5">
-                {analysis.key_findings.map((f, i) => (
+                {keyFindings.map((f, i) => (
                   <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
                     <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
                     {f}
@@ -335,13 +354,13 @@ function AnalysisReport({ analysis }: { analysis: AgentAnalysis }) {
           )}
 
           {/* Impact Chain */}
-          {analysis.impact_chain.length > 0 && (
+          {impactChain.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5 text-purple-500" /> Impact Chain (Ontology-based)
               </h4>
               <div className="flex flex-wrap gap-2">
-                {analysis.impact_chain.map((item, i) => (
+                {impactChain.map((item, i) => (
                   <div key={i} className="flex items-center gap-1 text-xs">
                     <span className="px-2 py-1 rounded bg-blue-50 text-blue-700 font-medium border border-blue-100">{item.from}</span>
                     <div className="flex flex-col items-center">
@@ -349,7 +368,7 @@ function AnalysisReport({ analysis }: { analysis: AgentAnalysis }) {
                       <span className={cn('text-[9px] px-1 rounded', impactColors[item.intensity])}>{item.mechanism}</span>
                     </div>
                     <span className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 font-medium border border-emerald-100">{item.to}</span>
-                    {i < analysis.impact_chain.length - 1 && <ChevronRight className="w-3 h-3 text-slate-300" />}
+                    {i < impactChain.length - 1 && <ChevronRight className="w-3 h-3 text-slate-300" />}
                   </div>
                 ))}
               </div>
@@ -807,7 +826,7 @@ export function AgentStudio() {
   }
 
   return (
-    <div className="h-full flex flex-col -m-6">
+    <div className="flex flex-col h-[calc(100vh-8.5rem)] -m-6">
       {/* ── Top Tab Bar ─────────────────────────────────────────────────────── */}
       <div className="flex border-b border-slate-200 bg-white px-6 shrink-0">
         <button

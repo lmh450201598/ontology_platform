@@ -551,6 +551,7 @@ export function ObjectTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
               <TableHead>对象类型 ID</TableHead>
               <TableHead>属性</TableHead>
               <TableHead>底层数据集</TableHead>
+              <TableHead>状态</TableHead>
               <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -568,6 +569,13 @@ export function ObjectTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
                 <TableCell className="font-mono text-xs text-slate-500">{ot.id}</TableCell>
                 <TableCell><Badge variant="secondary">{ot.properties.length}</Badge></TableCell>
                 <TableCell className="font-mono text-xs text-slate-500 max-w-[200px] truncate">{ot.backingDataset}</TableCell>
+                <TableCell>
+                  {ot.status === 'pending' ? (
+                    <Badge variant="outline" className="border-amber-200 text-amber-600 bg-amber-50">待审核</Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50">已生效</Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
                     onClick={e => { e.stopPropagation(); handleDeleteObjectType(ot); }}>
@@ -578,7 +586,7 @@ export function ObjectTypes({ data, onUpdate }: { data: OntologyData, onUpdate: 
             ))}
             {filteredObjectTypes.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-slate-500">未找到对象类型。</TableCell>
+                <TableCell colSpan={6} className="h-24 text-center text-slate-500">未找到对象类型。</TableCell>
               </TableRow>
             )}
           </TableBody>

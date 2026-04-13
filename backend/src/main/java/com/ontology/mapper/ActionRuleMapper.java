@@ -11,6 +11,9 @@ import java.util.List;
 @Mapper
 public interface ActionRuleMapper extends BaseMapper<ActionRule> {
     
-    @Select("SELECT * FROM action_rules WHERE action_type_id = #{actionTypeId} ORDER BY id")
+    @Select("SELECT * FROM action_rules WHERE action_type_id = #{actionTypeId} ORDER BY sort_order")
     List<ActionRule> selectByActionTypeId(@Param("actionTypeId") String actionTypeId);
+    
+    @Select("DELETE FROM action_rules WHERE action_type_id = #{actionTypeId}")
+    void deleteByActionTypeId(@Param("actionTypeId") String actionTypeId);
 }

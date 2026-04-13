@@ -33,4 +33,6 @@ public class LinkType {
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;
+
+    private String status;
 }

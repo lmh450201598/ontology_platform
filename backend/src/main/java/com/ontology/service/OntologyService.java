@@ -16,8 +16,8 @@ public class OntologyService {
     private final PropertyMapper propertyMapper;
     private final LinkTypeMapper linkTypeMapper;
     private final ActionTypeMapper actionTypeMapper;
-    private final ActionParameterMapper actionParameterMapper;
     private final ActionRuleMapper actionRuleMapper;
+    private final ActionEffectMapper actionEffectMapper;
     private final IndustryCategoryMapper industryCategoryMapper;
     
     public Map<String, Object> buildOntologyData() {
@@ -34,11 +34,11 @@ public class OntologyService {
         List<LinkType> linkTypes = linkTypeMapper.selectAllOrdered();
         result.put("linkTypes", linkTypes);
         
-        // Action Types with Parameters and Rules
-        List<ActionType> actionTypes = actionTypeMapper.selectAllOrdered();
+        // Action Types with Rules and Effects
+        List<ActionType> actionTypes = actionTypeMapper.selectAllActive();
         for (ActionType at : actionTypes) {
-            at.setParameters(actionParameterMapper.selectByActionTypeId(at.getId()));
             at.setRules(actionRuleMapper.selectByActionTypeId(at.getId()));
+            at.setEffects(actionEffectMapper.selectByActionTypeId(at.getId()));
         }
         result.put("actionTypes", actionTypes);
         
@@ -87,27 +87,25 @@ public class OntologyService {
         // Action Types
         List<ActionType> actionTypes = actionTypeMapper.selectList(
             new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ActionType>()
-                .in(ActionType::getIndustryId, descendantIds)
-                .or().in(ActionType::getTargetObjectId, otIds)
-                .orderByAsc(ActionType::getName)
+                .eq(ActionType::getStatus, "ACTIVE")
+                .orderByAsc(ActionType::getDisplayName)
         );
         
         List<String> atIds = actionTypes.stream().map(ActionType::getId).collect(Collectors.toList());
         
-        // Action Parameters and Rules
-        List<ActionParameter> actionParams = new ArrayList<>();
+        // Action Rules and Effects
         List<ActionRule> actionRules = new ArrayList<>();
+        List<ActionEffect> actionEffects = new ArrayList<>();
         if (!atIds.isEmpty()) {
-            actionParams = actionParameterMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ActionParameter>()
-                    .in(ActionParameter::getActionTypeId, atIds)
-                    .orderByAsc(ActionParameter::getActionTypeId)
-                    .orderByAsc(ActionParameter::getSortOrder)
-            );
             actionRules = actionRuleMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ActionRule>()
                     .in(ActionRule::getActionTypeId, atIds)
                     .orderByAsc(ActionRule::getActionTypeId)
+            );
+            actionEffects = actionEffectMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ActionEffect>()
+                    .in(ActionEffect::getActionTypeId, atIds)
+                    .orderByAsc(ActionEffect::getActionTypeId)
             );
         }
         
@@ -127,20 +125,19 @@ public class OntologyService {
             return map;
         }).collect(Collectors.toList());
         
-        final List<ActionParameter> finalActionParams = actionParams;
         final List<ActionRule> finalActionRules = actionRules;
+        final List<ActionEffect> finalActionEffects = actionEffects;
         List<Map<String, Object>> atResult = actionTypes.stream().map(at -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", at.getId());
-            map.put("name", at.getName());
+            map.put("displayName", at.getDisplayName());
             map.put("description", at.getDescription());
-            map.put("targetObjectId", at.getTargetObjectId());
-            map.put("industryId", at.getIndustryId());
-            map.put("parameters", finalActionParams.stream()
-                .filter(p -> p.getActionTypeId().equals(at.getId()))
-                .collect(Collectors.toList()));
+            map.put("status", at.getStatus());
             map.put("rules", finalActionRules.stream()
                 .filter(r -> r.getActionTypeId().equals(at.getId()))
+                .collect(Collectors.toList()));
+            map.put("effects", finalActionEffects.stream()
+                .filter(e -> e.getActionTypeId().equals(at.getId()))
                 .collect(Collectors.toList()));
             return map;
         }).collect(Collectors.toList());

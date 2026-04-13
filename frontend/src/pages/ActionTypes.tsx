@@ -1,805 +1,625 @@
 import React, { useState, useEffect } from 'react';
-import { OntologyData, ActionType } from '@/src/store/ontologyStore';
+import { api } from '@/src/api/client';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/src/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/src/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
+import { Badge } from '@/src/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/src/components/ui/dialog';
 import { Label } from '@/src/components/ui/label';
-import { Search, Plus, PlayCircle, Database, Trash2, Loader2, ChevronRight, CheckCircle2, XCircle, AlertTriangle, Clock, Zap, Shield, Webhook, History, ArrowRight, Sparkles, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/src/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
+import { Plus, Trash2, Edit, Play, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '@/src/api/client';
 import { cn } from '@/src/lib/utils';
 
-interface ActionExecution {
+// 类型定义
+interface ActionRule {
+  id?: string;
+  ruleType: 'ONTOLOGY' | 'OTHER';
+  ontologyRuleCategory?: string;
+  ontologyRuleId?: string;
+  functionTypeId?: string;
+  params?: ActionRuleParam[];
+  ontologyRuleName?: string;
+  functionTypeName?: string;
+}
+
+interface ActionRuleParam {
+  id?: string;
+  paramName: string;
+  paramValue: string;
+}
+
+interface ActionEffect {
+  id?: string;
+  effectType: 'NOTIFICATION' | 'LINGKE' | 'EMAIL';
+  content?: string;
+  isEnabled?: number;
+}
+
+interface ActionType {
   id: string;
-  action_type_id: string;
-  action_name?: string;
-  target_object_id: string;
-  parameters: Record<string, any>;
+  displayName: string;
+  description?: string;
   status: string;
-  validation_errors: string[];
-  side_effects: { rule: string; description: string; status: string; detail?: string }[];
-  result: any;
-  executed_by: string;
-  created_at: string;
-  completed_at: string | null;
+  rules?: ActionRule[];
+  effects?: ActionEffect[];
 }
 
-// ── Execution Panel Component ───────────────────────────────────────────────
-
-function ExecutionPanel({
-  action,
-  objectTypes,
-  onClose,
-}: {
-  action: ActionType;
-  objectTypes: OntologyData['objectTypes'];
-  onClose: () => void;
-}) {
-  const [params, setParams] = useState<Record<string, string>>({});
-  const [executing, setExecuting] = useState(false);
-  const [result, setResult] = useState<{
-    status: string;
-    executionId: string;
-    validationErrors?: string[];
-    sideEffects?: any[];
-    result?: any;
-  } | null>(null);
-  const [executions, setExecutions] = useState<ActionExecution[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(true);
-  const [activeTab, setActiveTab] = useState<'execute' | 'history'>('execute');
-
-  const targetObject = objectTypes.find(ot => ot.id === action.targetObjectId);
-
-  // Load execution history
-  useEffect(() => {
-    setLoadingHistory(true);
-    api.getActionExecutions(action.id)
-      .then(res => setExecutions(res.executions))
-      .catch(() => {})
-      .finally(() => setLoadingHistory(false));
-  }, [action.id]);
-
-  const handleExecute = async () => {
-    setExecuting(true);
-    setResult(null);
-    try {
-      const res = await api.executeAction(action.id, params);
-      setResult(res);
-      if (res.status === 'completed') {
-        toast.success(`动作 "${action.name}" 执行成功。`);
-        // Refresh history
-        api.getActionExecutions(action.id).then(r => setExecutions(r.executions));
-      } else if (res.status === 'failed' && res.validationErrors) {
-        toast.error(`验证失败: ${res.validationErrors.join('; ')}`);
-      } else {
-        toast.error(`执行失败: ${res.status}`);
-      }
-    } catch (err: any) {
-      // 400 returns validation errors in body
-      try {
-        const body = JSON.parse(err.message.replace(/^.*?(\{)/, '$1'));
-        setResult(body);
-        if (body.validationErrors) {
-          toast.error(`验证失败: ${body.validationErrors.join('; ')}`);
-        } else {
-          toast.error(err.message);
-        }
-      } catch {
-        setResult({ status: 'error', executionId: '', validationErrors: [err.message] });
-        toast.error(err.message);
-      }
-    } finally {
-      setExecuting(false);
-    }
-  };
-
-  const handleReset = () => {
-    setParams({});
-    setResult(null);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex justify-end" onClick={onClose}>
-      <div
-        className="w-[560px] bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-purple-50 to-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <PlayCircle className="w-5 h-5 text-purple-600" />
-                {action.name}
-              </h2>
-              <p className="text-sm text-slate-500 mt-0.5">{action.description}</p>
-            </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl font-light">×</button>
-          </div>
-          <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
-            <Database className="w-3 h-3 text-blue-500" />
-            Target: <span className="font-medium text-slate-700">{targetObject?.name || action.targetObjectId}</span>
-            <span className="mx-1">·</span>
-            {action.parameters.length} params
-            <span className="mx-1">·</span>
-            {action.rules.length} rules
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-slate-200">
-          <button
-            onClick={() => setActiveTab('execute')}
-            className={cn(
-              'flex-1 px-4 py-2.5 text-sm font-medium transition-colors',
-              activeTab === 'execute'
-                ? 'text-purple-700 border-b-2 border-purple-600 bg-purple-50/50'
-                : 'text-slate-500 hover:text-slate-700'
-            )}
-          >
-            <Zap className="w-3.5 h-3.5 inline mr-1.5" />
-            执行
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={cn(
-              'flex-1 px-4 py-2.5 text-sm font-medium transition-colors',
-              activeTab === 'history'
-                ? 'text-purple-700 border-b-2 border-purple-600 bg-purple-50/50'
-                : 'text-slate-500 hover:text-slate-700'
-            )}
-          >
-            <History className="w-3.5 h-3.5 inline mr-1.5" />
-            历史 ({executions.length})
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto">
-          {activeTab === 'execute' ? (
-            <div className="p-6 space-y-6">
-              {/* Parameter Form */}
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-blue-500" />
-                  参数
-                </h3>
-                {action.parameters.length === 0 ? (
-                  <div className="text-sm text-slate-400 italic">未定义参数。</div>
-                ) : (
-                  <div className="space-y-3">
-                    {action.parameters.map((p, idx) => (
-                      <div key={idx} className="space-y-1.5">
-                        <Label className="text-xs">
-                          {p.name}
-                          {p.required && <span className="text-red-500 ml-0.5">*</span>}
-                          <span className="text-slate-400 ml-1.5 font-normal">({p.type})</span>
-                        </Label>
-                        {p.type === 'boolean' ? (
-                          <Select
-                            value={params[p.name] || ''}
-                            onValueChange={v => setParams(prev => ({ ...prev, [p.name]: v }))}
-                          >
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">True</SelectItem>
-                              <SelectItem value="false">False</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={params[p.name] || ''}
-                            onChange={e => setParams(prev => ({ ...prev, [p.name]: e.target.value }))}
-                            placeholder={`Enter ${p.name}...`}
-                            className="h-9"
-                            type={p.type === 'integer' || p.type === 'double' ? 'number' : 'text'}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Rules Preview */}
-              {action.rules.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-500" />
-                    Rules
-                  </h3>
-                  <div className="space-y-2">
-                    {action.rules.map((rule, idx) => (
-                      <div key={idx} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                        {rule.type === 'validation' && <Shield className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />}
-                        {rule.type === 'side_effect' && <Zap className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />}
-                        {rule.type === 'webhook' && <Webhook className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />}
-                        <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">{rule.type}</div>
-                          <div className="text-xs text-slate-600">{rule.description}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Execute Button */}
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleExecute}
-                  disabled={executing}
-                  className="flex-1 gap-2 bg-purple-600 hover:bg-purple-700"
-                >
-                  {executing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-                  {executing ? '执行中...' : '执行动作'}
-                </Button>
-                <Button variant="outline" onClick={handleReset} className="gap-1.5">
-                  重置
-                </Button>
-              </div>
-
-              {/* Result */}
-              {result && (
-                <div className={cn(
-                  'rounded-lg border p-4 space-y-3',
-                  result.status === 'success'
-                    ? 'bg-emerald-50 border-emerald-200'
-                    : 'bg-red-50 border-red-200'
-                )}>
-                  <div className="flex items-center gap-2">
-                    {result.status === 'success' ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-600" />
-                    )}
-                    <span className={cn('font-medium text-sm', result.status === 'success' ? 'text-emerald-800' : 'text-red-800')}>
-                      {result.status === 'success' ? '执行成功' : '验证失败'}
-                    </span>
-                    {result.executionId && (
-                      <span className="text-[10px] font-mono text-slate-400 ml-auto">{result.executionId}</span>
-                    )}
-                  </div>
-
-                  {/* Validation errors */}
-                  {result.validationErrors && result.validationErrors.length > 0 && (
-                    <div className="space-y-1">
-                      {result.validationErrors.map((err, i) => (
-                        <div key={i} className="text-xs text-red-700 flex items-start gap-1.5">
-                          <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                          {err}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Side effects */}
-                  {result.sideEffects && result.sideEffects.length > 0 && (
-                    <div>
-                      <div className="text-xs font-semibold text-slate-600 mb-1.5">副作用：</div>
-                      {result.sideEffects.map((se: any, i: number) => (
-                        <div key={i} className="flex items-start gap-2 text-xs mb-1.5">
-                          {se.status === 'triggered' && <Zap className="w-3 h-3 text-amber-500 mt-0.5" />}
-                          {se.status === 'skipped' && <ArrowRight className="w-3 h-3 text-slate-400 mt-0.5" />}
-                          {se.status === 'simulated' && <Webhook className="w-3 h-3 text-emerald-500 mt-0.5" />}
-                          <div>
-                            <span className={cn(
-                              'font-medium',
-                              se.status === 'triggered' ? 'text-amber-700' : se.status === 'skipped' ? 'text-slate-500' : 'text-emerald-700'
-                            )}>
-                              [{se.status}]
-                            </span>{' '}
-                            <span className="text-slate-600">{se.detail || se.description}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Success result */}
-                  {result.status === 'success' && result.result?.message && (
-                    <div className="text-xs text-emerald-700">{result.result.message}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* History Tab */
-            <div className="p-4">
-              {loadingHistory ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  加载历史...
-                </div>
-              ) : executions.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">
-                  <History className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">暂无执行记录。</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {executions.map(exec => (
-                    <div key={exec.id} className="border border-slate-200 rounded-lg p-3 bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        {exec.status === 'success' ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-500" />
-                        )}
-                        <span className={cn(
-                          'text-xs font-semibold uppercase',
-                          exec.status === 'success' ? 'text-emerald-600' : 'text-red-600'
-                        )}>
-                          {exec.status}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-400 ml-auto">{exec.id}</span>
-                      </div>
-
-                      {/* Parameters used */}
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {Object.entries(exec.parameters).map(([k, v]) => (
-                          <span key={k} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                            {k}: <span className="font-medium">{String(v)}</span>
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Errors or side effects */}
-                      {exec.validation_errors.length > 0 && (
-                        <div className="text-[10px] text-red-600 space-y-0.5">
-                          {exec.validation_errors.map((e, i) => <div key={i}>• {e}</div>)}
-                        </div>
-                      )}
-                      {exec.side_effects.length > 0 && (
-                        <div className="text-[10px] text-amber-600 space-y-0.5">
-                          {exec.side_effects.map((se, i) => (
-                            <div key={i}>⚡ [{se.status}] {se.description}</div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-400">
-                        <Clock className="w-3 h-3" />
-                        {new Date(exec.created_at + 'Z').toLocaleString()}
-                        <span>· 由 {exec.executed_by}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+interface OntologyRule {
+  id: string;
+  ruleCategory: string;
+  functionName: string;
+  functionDescription?: string;
 }
 
-// ── Parameter row editor ────────────────────────────────────────────────────
+interface FunctionType {
+  id: string;
+  code: string;
+  name: string;
+  inputParams?: any[];
+}
 
-interface ParamDef { name: string; type: string; required: boolean; }
-interface RuleDef { type: string; description: string; }
-
-const PARAM_TYPES = ['string', 'integer', 'double', 'boolean', 'date', 'timestamp'];
-const RULE_TYPES = [
-  { value: 'validation', label: '验证', icon: Shield, color: 'text-blue-600' },
-  { value: 'side_effect', label: '副作用', icon: Zap, color: 'text-amber-600' },
-  { value: 'webhook', label: 'Webhook', icon: Webhook, color: 'text-emerald-600' },
+const RULE_CATEGORIES = [
+  { value: 'CREATE_OBJECT', label: '创建对象' },
+  { value: 'UPDATE_OBJECT', label: '修改对象' },
+  { value: 'DELETE_OBJECT', label: '删除对象' },
+  { value: 'CREATE_LINK', label: '创建链接' },
+  { value: 'DELETE_LINK', label: '删除链接' },
 ];
 
-function ParamRow({ param, onChange, onRemove }: {
-  param: ParamDef;
-  onChange: (p: ParamDef) => void;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Input
-        value={param.name}
-        onChange={e => onChange({ ...param, name: e.target.value })}
-        placeholder="参数名称"
-        className="flex-1 h-8 text-sm"
-      />
-      <Select value={param.type} onValueChange={v => onChange({ ...param, type: v })}>
-        <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {PARAM_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-        </SelectContent>
-      </Select>
-      <button
-        onClick={() => onChange({ ...param, required: !param.required })}
-        className={cn('text-xs px-2 py-1 rounded border transition-colors', param.required ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-400 border-slate-200')}
-      >
-        {param.required ? '必填' : '可选'}
-      </button>
-      <button onClick={onRemove} className="text-slate-400 hover:text-red-500 transition-colors">
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-}
+const EFFECT_TYPES = [
+  { value: 'NOTIFICATION', label: '通知（站内）', enabled: true },
+  { value: 'LINGKE', label: '铃客消息', enabled: false },
+  { value: 'EMAIL', label: '邮件推送', enabled: false },
+];
 
-function RuleRow({ rule, onChange, onRemove }: {
-  rule: RuleDef;
-  onChange: (r: RuleDef) => void;
-  onRemove: () => void;
-}) {
-  const ruleType = RULE_TYPES.find(rt => rt.value === rule.type);
-  return (
-    <div className="flex items-start gap-2">
-      <Select value={rule.type} onValueChange={v => onChange({ ...rule, type: v })}>
-        <SelectTrigger className="w-32 h-8 text-xs shrink-0"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {RULE_TYPES.map(rt => (
-            <SelectItem key={rt.value} value={rt.value}>
-              <span className={rt.color}>{rt.label}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Input
-        value={rule.description}
-        onChange={e => onChange({ ...rule, description: e.target.value })}
-        placeholder="规则描述..."
-        className="flex-1 h-8 text-xs"
-      />
-      <button onClick={onRemove} className="text-slate-400 hover:text-red-500 mt-1 transition-colors">
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-}
+export function ActionTypes() {
+  const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
+  const [ontologyRules, setOntologyRules] = useState<OntologyRule[]>([]);
+  const [functionTypes, setFunctionTypes] = useState<FunctionType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingAction, setEditingAction] = useState<ActionType | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-// ── Main ActionTypes Page ───────────────────────────────────────────────────
+  // Form state
+  const [formData, setFormData] = useState<Partial<ActionType>>({
+    displayName: '',
+    description: '',
+  });
+  const [rules, setRules] = useState<ActionRule[]>([]);
+  const [effects, setEffects] = useState<ActionEffect[]>([
+    { effectType: 'NOTIFICATION', content: '', isEnabled: 1 }
+  ]);
 
-export function ActionTypes({ data, onUpdate }: { data: OntologyData, onUpdate: (data: OntologyData) => void }) {
-  const [search, setSearch] = useState('');
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
+  // Execute dialog state
+  const [executeDialogOpen, setExecuteDialogOpen] = useState(false);
+  const [executingAction, setExecutingAction] = useState<ActionType | null>(null);
+  const [executeParams, setExecuteParams] = useState<Record<string, string>>({});
+  const [executeLoading, setExecuteLoading] = useState(false);
 
-  // New Action Type form state
-  const [newActionName, setNewActionName] = useState('');
-  const [newActionId, setNewActionId] = useState('');
-  const [newActionTarget, setNewActionTarget] = useState('');
-  const [newActionDesc, setNewActionDesc] = useState('');
-  const [newParams, setNewParams] = useState<ParamDef[]>([]);
-  const [newRules, setNewRules] = useState<RuleDef[]>([]);
-  const [creating, setCreating] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [aiReasoning, setAiReasoning] = useState('');
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [atRes, orRes, ftRes] = await Promise.all([
+        api.getActionTypes(),
+        api.getOntologyRules(),
+        api.getFunctionTypes(),
+      ]);
+      setActionTypes(atRes.actionTypes || []);
+      setOntologyRules(orRes.rules || []);
+      setFunctionTypes(ftRes.functions || []);
+    } catch (err: any) {
+      toast.error(`加载失败: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const resetForm = () => {
-    setNewActionName(''); setNewActionId(''); setNewActionTarget('');
-    setNewActionDesc(''); setNewParams([]); setNewRules([]); setAiReasoning('');
+    setFormData({ displayName: '', description: '' });
+    setRules([]);
+    setEffects([{ effectType: 'NOTIFICATION', content: '', isEnabled: 1 }]);
+    setEditingAction(null);
   };
 
-  const filteredActionTypes = data.actionTypes.filter(at =>
-    at.name.toLowerCase().includes(search.toLowerCase()) ||
-    at.id.toLowerCase().includes(search.toLowerCase())
-  );
-
-  // Auto-fill ID from name
-  const handleNameChange = (name: string) => {
-    setNewActionName(name);
-    if (!newActionId || newActionId === generateId(newActionName)) {
-      setNewActionId(generateId(name));
-    }
+  const handleOpenCreate = () => {
+    resetForm();
+    setDialogOpen(true);
   };
 
-  const generateId = (name: string) =>
-    'act_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const handleOpenEdit = (action: ActionType) => {
+    setEditingAction(action);
+    setFormData({
+      displayName: action.displayName,
+      description: action.description || '',
+    });
+    setRules(action.rules || []);
+    setEffects(action.effects?.length ? action.effects : [{ effectType: 'NOTIFICATION', content: '', isEnabled: 1 }]);
+    setDialogOpen(true);
+  };
 
-  // AI generate parameters + rules
-  const handleAIGenerate = async () => {
-    if (!newActionName || !newActionTarget) {
-      toast.error('请先填写 Action 名称和目标对象');
+  const handleSave = async () => {
+    if (!formData.displayName) {
+      toast.error('显示名称为必填项');
       return;
     }
-    setGenerating(true);
-    setAiReasoning('');
-    try {
-      const result = await api.generateAction(newActionName, newActionDesc, newActionTarget);
-      setNewParams(result.parameters.map((p: any) => ({ name: p.name, type: p.type || 'string', required: !!p.required })));
-      setNewRules(result.rules.map((r: any) => ({ type: r.type || 'validation', description: r.description || '' })));
-      setAiReasoning(result.reasoning || '');
-      toast.success('AI 已生成参数和规则');
-    } catch (err: any) {
-      toast.error('AI 生成失败: ' + err.message);
-    } finally {
-      setGenerating(false);
-    }
-  };
 
-  const handleCreate = async () => {
-    if (!newActionName || !newActionId || !newActionTarget) {
-      toast.error('请填写名称、ID 和目标对象');
-      return;
-    }
-    setCreating(true);
     try {
-      const result = await api.createActionType({
-        id: newActionId,
-        name: newActionName,
-        description: newActionDesc,
-        targetObjectId: newActionTarget,
-        parameters: newParams,
-        rules: newRules,
-      });
-      onUpdate(result.data);
+      const saveData = {
+        ...formData,
+        rules,
+        effects: effects.filter(e => e.effectType === 'NOTIFICATION'), // 只保存通知类型
+      };
+
+      if (editingAction) {
+        await api.updateActionType(editingAction.id, saveData);
+        toast.success('动作类型更新成功');
+      } else {
+        await api.createActionType(saveData);
+        toast.success('动作类型创建成功');
+      }
+      setDialogOpen(false);
       resetForm();
-      setCreateDialogOpen(false);
-      toast.success(`Action type "${newActionName}" created.`);
+      loadData();
     } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setCreating(false);
+      toast.error(`保存失败: ${err.message}`);
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, at: ActionType) => {
-    e.stopPropagation();
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定要删除这个动作类型吗？')) return;
     try {
-      const result = await api.deleteActionType(at.id);
-      onUpdate(result.data);
-      if (selectedAction?.id === at.id) setSelectedAction(null);
-      toast.success(`Action type "${at.name}" deleted.`);
+      await api.deleteActionType(id);
+      toast.success('删除成功');
+      loadData();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(`删除失败: ${err.message}`);
     }
+  };
+
+  const handleOpenExecute = (action: ActionType) => {
+    setExecutingAction(action);
+    // 从规则的params中提取需要填写的参数
+    const params: Record<string, string> = {};
+    action.rules?.forEach(rule => {
+      rule.params?.forEach(param => {
+        if (param.paramName) {
+          params[param.paramName] = param.paramValue || '';
+        }
+      });
+    });
+    setExecuteParams(params);
+    setExecuteDialogOpen(true);
+  };
+
+  const handleExecute = async () => {
+    if (!executingAction) return;
+    
+    setExecuteLoading(true);
+    try {
+      // 查找instanceId参数（用于通知内容）
+      const instanceId = executeParams['instanceId'] || executeParams['id'] || 'unknown';
+      
+      const result = await api.executeAction(
+        executingAction.id, 
+        executeParams, 
+        'user', 
+        instanceId
+      );
+      
+      toast.success(`动作执行成功: ${result.executionId}`);
+      setExecuteDialogOpen(false);
+      setExecutingAction(null);
+      setExecuteParams({});
+    } catch (err: any) {
+      toast.error(`执行失败: ${err.message}`);
+    } finally {
+      setExecuteLoading(false);
+    }
+  };
+
+  const addRule = () => {
+    setRules([...rules, { ruleType: 'ONTOLOGY', params: [] }]);
+  };
+
+  const updateRule = (index: number, field: keyof ActionRule, value: any) => {
+    const newRules = [...rules];
+    newRules[index] = { ...newRules[index], [field]: value };
+    setRules(newRules);
+  };
+
+  const removeRule = (index: number) => {
+    setRules(rules.filter((_, i) => i !== index));
+  };
+
+  const addRuleParam = (ruleIndex: number) => {
+    const newRules = [...rules];
+    newRules[ruleIndex].params = [...(newRules[ruleIndex].params || []), { paramName: '', paramValue: '' }];
+    setRules(newRules);
+  };
+
+  const updateRuleParam = (ruleIndex: number, paramIndex: number, field: keyof ActionRuleParam, value: string) => {
+    const newRules = [...rules];
+    if (newRules[ruleIndex].params) {
+      newRules[ruleIndex].params![paramIndex] = { ...newRules[ruleIndex].params![paramIndex], [field]: value };
+      setRules(newRules);
+    }
+  };
+
+  const removeRuleParam = (ruleIndex: number, paramIndex: number) => {
+    const newRules = [...rules];
+    if (newRules[ruleIndex].params) {
+      newRules[ruleIndex].params = newRules[ruleIndex].params!.filter((_, i) => i !== paramIndex);
+      setRules(newRules);
+    }
+  };
+
+  const updateEffect = (index: number, field: keyof ActionEffect, value: any) => {
+    const newEffects = [...effects];
+    newEffects[index] = { ...newEffects[index], [field]: value };
+    setEffects(newEffects);
+  };
+
+  const getOntologyRulesByCategory = (category: string) => {
+    return ontologyRules.filter(r => r.ruleCategory === category);
+  };
+
+  const getFunctionTypeById = (id: string) => {
+    return functionTypes.find(f => f.id === id);
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">动作类型</h1>
-          <p className="text-slate-500 text-sm mt-1">定义和执行修改对象数据的操作。</p>
+          <h1 className="text-2xl font-bold text-slate-900">动作类型</h1>
+          <p className="text-slate-500 mt-1">管理动作类型、规则和副作用</p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={(open) => { setCreateDialogOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="w-4 h-4" /> 新建动作类型</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>创建动作类型</DialogTitle>
-              <DialogDescription>定义一个新操作。使用 AI 自动生成参数和规则。</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-5 py-2">
-              {/* Basic Info */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">显示名称 *</Label>
-                  <Input value={newActionName} onChange={e => handleNameChange(e.target.value)} placeholder="例如：更新设备状态" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">动作类型 ID *</Label>
-                  <Input value={newActionId} onChange={e => setNewActionId(e.target.value)} placeholder="act_update_status" className="font-mono text-sm" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">描述</Label>
-                <Input value={newActionDesc} onChange={e => setNewActionDesc(e.target.value)} placeholder="这个动作做什么？" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">目标对象类型 *</Label>
-                <Select value={newActionTarget} onValueChange={setNewActionTarget}>
-                  <SelectTrigger><SelectValue placeholder="选择目标对象" /></SelectTrigger>
-                  <SelectContent>
-                    {data.objectTypes.map(ot => <SelectItem key={ot.id} value={ot.id}>{ot.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+        <Button onClick={handleOpenCreate} className="gap-2">
+          <Plus className="w-4 h-4" />
+          新建动作类型
+        </Button>
+      </div>
 
-              {/* AI Generate Button */}
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100">
-                <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
-                <div className="flex-1 text-xs text-slate-600">填写名称和目标对象后，AI 可自动生成合适的参数和规则</div>
-                <Button size="sm" variant="outline" onClick={handleAIGenerate} disabled={generating || !newActionName || !newActionTarget}
-                  className="gap-1.5 text-purple-700 border-purple-200 hover:bg-purple-50">
-                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {generating ? '生成中...' : 'AI 生成'}
+      <div className="grid gap-4">
+        {actionTypes.map((action) => {
+          const isExpanded = expandedId === action.id;
+          return (
+            <Card key={action.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <CardTitle className="text-lg">{action.displayName}</CardTitle>
+                      <Badge variant={action.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                        {action.status === 'ACTIVE' ? '启用' : '禁用'}
+                      </Badge>
+                    </div>
+                    {action.description && (
+                      <p className="text-sm text-slate-500 mt-2">{action.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-green-600" 
+                      onClick={() => handleOpenExecute(action)}
+                      title="执行"
+                    >
+                      <Play className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setExpandedId(isExpanded ? null : action.id)}>
+                      {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(action)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDelete(action.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+
+              {isExpanded && (
+                <CardContent className="pt-0 border-t">
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">规则 ({action.rules?.length || 0})</h4>
+                      <div className="space-y-2">
+                        {action.rules?.map((rule, i) => (
+                          <div key={i} className="flex items-center gap-2 text-sm">
+                            <Badge variant="outline">{rule.ruleType === 'ONTOLOGY' ? '本体规则' : '其他规则'}</Badge>
+                            <span>{rule.ontologyRuleName || rule.functionTypeName || '未指定'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">副作用 ({action.effects?.length || 0})</h4>
+                      <div className="space-y-2">
+                        {action.effects?.map((effect, i) => (
+                          <div key={i} className="flex items-center gap-2 text-sm">
+                            <Badge variant="outline">
+                              {effect.effectType === 'NOTIFICATION' ? '通知' : effect.effectType}
+                            </Badge>
+                            <span className="text-slate-500">{effect.isEnabled ? '启用' : '禁用'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingAction ? '编辑动作类型' : '新建动作类型'}</DialogTitle>
+          </DialogHeader>
+
+          <Tabs defaultValue="basic" className="mt-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">基本信息</TabsTrigger>
+              <TabsTrigger value="rules">规则配置</TabsTrigger>
+              <TabsTrigger value="effects">副作用配置</TabsTrigger>
+            </TabsList>
+
+            {/* Basic Info */}
+            <TabsContent value="basic" className="space-y-4">
+              <div className="space-y-2">
+                <Label>显示名称 <span className="text-red-500">*</span></Label>
+                <Input
+                  value={formData.displayName}
+                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                  placeholder="例如：创建电芯实例"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>描述</Label>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="动作类型描述"
+                />
+              </div>
+            </TabsContent>
+
+            {/* Rules Config */}
+            <TabsContent value="rules" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base">规则配置</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addRule}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  添加规则
                 </Button>
               </div>
-              {aiReasoning && (
-                <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 italic">
-                  💡 {aiReasoning}
-                </div>
-              )}
 
-              {/* Parameters */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs flex items-center gap-1.5"><Shield className="w-3.5 h-3.5 text-blue-500" /> Parameters ({newParams.length})</Label>
-                  <button
-                    onClick={() => setNewParams(prev => [...prev, { name: '', type: 'string', required: false }])}
-                    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" /> 添加
-                  </button>
-                </div>
-                {newParams.length === 0 ? (
-                  <div className="text-xs text-slate-400 italic text-center py-2 border border-dashed border-slate-200 rounded-lg">
-                    无参数 — 点击添加或使用 AI 生成
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {newParams.map((p, i) => (
-                      <ParamRow
-                        key={i}
-                        param={p}
-                        onChange={updated => setNewParams(prev => prev.map((x, j) => j === i ? updated : x))}
-                        onRemove={() => setNewParams(prev => prev.filter((_, j) => j !== i))}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+              {rules.map((rule, ruleIndex) => (
+                <Card key={ruleIndex} className="p-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>规则 #{ruleIndex + 1}</Label>
+                      <Button type="button" variant="ghost" size="sm" className="text-red-500" onClick={() => removeRule(ruleIndex)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
 
-              {/* Rules */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-amber-500" /> Rules ({newRules.length})</Label>
-                  <button
-                    onClick={() => setNewRules(prev => [...prev, { type: 'validation', description: '' }])}
-                    className="text-xs text-amber-600 hover:text-amber-700 flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" /> 添加
-                  </button>
-                </div>
-                {newRules.length === 0 ? (
-                  <div className="text-xs text-slate-400 italic text-center py-2 border border-dashed border-slate-200 rounded-lg">
-                    无规则 — 点击添加或使用 AI 生成
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {newRules.map((r, i) => (
-                      <RuleRow
-                        key={i}
-                        rule={r}
-                        onChange={updated => setNewRules(prev => prev.map((x, j) => j === i ? updated : x))}
-                        onRemove={() => setNewRules(prev => prev.filter((_, j) => j !== i))}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setCreateDialogOpen(false); resetForm(); }}>取消</Button>
-              <Button onClick={handleCreate} disabled={creating}>
-                {creating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                创建动作
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input placeholder="搜索动作类型..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50/50">
-              <TableHead>名称</TableHead>
-              <TableHead>动作类型 ID</TableHead>
-              <TableHead>目标对象</TableHead>
-              <TableHead>参数</TableHead>
-              <TableHead>规则</TableHead>
-              <TableHead className="text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredActionTypes.map(at => {
-              const target = data.objectTypes.find(o => o.id === at.targetObjectId);
-              const isSelected = selectedAction?.id === at.id;
-              return (
-                <TableRow
-                  key={at.id}
-                  className={cn(
-                    'cursor-pointer transition-colors',
-                    isSelected ? 'bg-purple-50 hover:bg-purple-50' : 'hover:bg-slate-50'
-                  )}
-                  onClick={() => setSelectedAction(at)}
-                >
-                  <TableCell className="font-medium text-slate-900">
-                    <div className="flex items-center gap-2">
-                      <div className={cn(
-                        'w-7 h-7 rounded-lg flex items-center justify-center',
-                        isSelected ? 'bg-purple-100 text-purple-600' : 'bg-purple-50 text-purple-500'
-                      )}>
-                        <PlayCircle className="w-3.5 h-3.5" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>规则类型</Label>
+                        <Select
+                          value={rule.ruleType}
+                          onValueChange={(v) => updateRule(ruleIndex, 'ruleType', v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ONTOLOGY">本体规则</SelectItem>
+                            <SelectItem value="OTHER">其他规则</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          {at.name}
-                          <ChevronRight className="w-3 h-3 text-slate-400" />
+
+                      {rule.ruleType === 'ONTOLOGY' && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>规则类别</Label>
+                            <Select
+                              value={rule.ontologyRuleCategory}
+                              onValueChange={(v) => updateRule(ruleIndex, 'ontologyRuleCategory', v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {RULE_CATEGORIES.map(c => (
+                                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>选择函数</Label>
+                            <Select
+                              value={rule.ontologyRuleId}
+                              onValueChange={(v) => updateRule(ruleIndex, 'ontologyRuleId', v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {getOntologyRulesByCategory(rule.ontologyRuleCategory || '').map(r => (
+                                  <SelectItem key={r.id} value={r.id}>
+                                    {r.functionName} - {r.functionDescription?.substring(0, 30)}...
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
+                      )}
+
+                      {rule.ruleType === 'OTHER' && (
+                        <div className="space-y-2">
+                          <Label>选择函数类型</Label>
+                          <Select
+                            value={rule.functionTypeId}
+                            onValueChange={(v) => updateRule(ruleIndex, 'functionTypeId', v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {functionTypes.map(f => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.name} ({f.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                        {at.description && <div className="text-xs text-slate-400 font-normal">{at.description}</div>}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-slate-500">{at.id}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                      <Database className="w-3 h-3 text-blue-500" />
-                      <span className="font-medium">{target?.name || at.targetObjectId}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                      {at.parameters.length} 个参数
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {at.rules.filter(r => r.type === 'validation').length > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
-                          <Shield className="w-2.5 h-2.5" />
-                          {at.rules.filter(r => r.type === 'validation').length}
-                        </span>
-                      )}
-                      {at.rules.filter(r => r.type === 'side_effect').length > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">
-                          <Zap className="w-2.5 h-2.5" />
-                          {at.rules.filter(r => r.type === 'side_effect').length}
-                        </span>
-                      )}
-                      {at.rules.filter(r => r.type === 'webhook').length > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded">
-                          <Webhook className="w-2.5 h-2.5" />
-                          {at.rules.filter(r => r.type === 'webhook').length}
-                        </span>
-                      )}
-                      {at.rules.length === 0 && (
-                        <span className="text-xs text-slate-400">—</span>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 gap-1.5 text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700"
-                        onClick={(e) => { e.stopPropagation(); setSelectedAction(at); }}
-                      >
-                        <PlayCircle className="w-3 h-3" />
-                        Execute
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={(e) => handleDelete(e, at)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {filteredActionTypes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-slate-500">No action types found.</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
 
-      {/* Execution Panel Slide-over */}
-      {selectedAction && (
-        <ExecutionPanel
-          action={selectedAction}
-          objectTypes={data.objectTypes}
-          onClose={() => setSelectedAction(null)}
-        />
-      )}
+                    {/* Rule Params */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>入参配置</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={() => addRuleParam(ruleIndex)}>
+                          <Plus className="w-4 h-4 mr-1" />
+                          添加参数
+                        </Button>
+                      </div>
+                      {rule.params?.map((param, paramIndex) => (
+                        <div key={paramIndex} className="grid grid-cols-3 gap-2">
+                          <Input
+                            placeholder="参数名"
+                            value={param.paramName}
+                            onChange={(e) => updateRuleParam(ruleIndex, paramIndex, 'paramName', e.target.value)}
+                          />
+                          <Input
+                            placeholder="参数值"
+                            value={param.paramValue}
+                            onChange={(e) => updateRuleParam(ruleIndex, paramIndex, 'paramValue', e.target.value)}
+                          />
+                          <Button type="button" variant="ghost" size="sm" className="text-red-500" onClick={() => removeRuleParam(ruleIndex, paramIndex)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </TabsContent>
+
+            {/* Effects Config */}
+            <TabsContent value="effects" className="space-y-4">
+              <Label className="text-base">副作用配置</Label>
+              {effects.map((effect, index) => (
+                <Card key={index} className="p-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>副作用类型</Label>
+                      <Select
+                        value={effect.effectType}
+                        onValueChange={(v) => updateEffect(index, 'effectType', v)}
+                        disabled={!EFFECT_TYPES.find(t => t.value === effect.effectType)?.enabled}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EFFECT_TYPES.map(t => (
+                            <SelectItem key={t.value} value={t.value} disabled={!t.enabled}>
+                              {t.label} {!t.enabled && '(暂未实现)'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {effect.effectType === 'NOTIFICATION' && (
+                      <div className="space-y-2">
+                        <Label>通知内容</Label>
+                        <Input
+                          value={effect.content}
+                          onChange={(e) => updateEffect(index, 'content', e.target.value)}
+                          placeholder="完成${实例id}的操作"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>取消</Button>
+            <Button onClick={handleSave}>{editingAction ? '更新' : '创建'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Execute Dialog */}
+      <Dialog open={executeDialogOpen} onOpenChange={setExecuteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>执行动作: {executingAction?.displayName}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {Object.keys(executeParams).length === 0 ? (
+              <p className="text-slate-500">此动作类型无需输入参数</p>
+            ) : (
+              Object.entries(executeParams).map(([key, value]) => (
+                <div key={key} className="space-y-2">
+                  <Label>{key}</Label>
+                  <Input
+                    value={value}
+                    onChange={(e) => setExecuteParams({ ...executeParams, [key]: e.target.value })}
+                    placeholder={`请输入 ${key}`}
+                  />
+                </div>
+              ))
+            )}
+            
+            {/* 默认添加instanceId参数 */}
+            {!executeParams['instanceId'] && (
+              <div className="space-y-2">
+                <Label>实例ID (instanceId)</Label>
+                <Input
+                  value={executeParams['instanceId'] || ''}
+                  onChange={(e) => setExecuteParams({ ...executeParams, instanceId: e.target.value })}
+                  placeholder="请输入实例ID"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExecuteDialogOpen(false)}>取消</Button>
+            <Button onClick={handleExecute} disabled={executeLoading}>
+              {executeLoading ? '执行中...' : '执行'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

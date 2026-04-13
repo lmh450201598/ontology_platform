@@ -11,6 +11,7 @@ import { AiStudio } from './pages/AiStudio';
 import { AgentStudio } from './pages/AgentStudio';
 import { IndustryMap } from './pages/IndustryMap';
 import { ObjectExplorer } from './pages/ObjectExplorer';
+import { OntologyRules } from './pages/OntologyRules';
 import { OntologyData } from './store/ontologyStore';
 import { Toaster } from 'sonner';
 import { api } from './api/client';
@@ -64,6 +65,8 @@ export default function App() {
         return <FunctionTypes />;
       case 'actions':
         return <ActionTypes data={ontology} onUpdate={setOntology} />;
+      case 'rules':
+        return <OntologyRules />;
       case 'graph':
         return <GraphView data={ontology} />;
       case 'industry':

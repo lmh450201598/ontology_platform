@@ -11,9 +11,9 @@ import java.util.List;
 @Mapper
 public interface ActionTypeMapper extends BaseMapper<ActionType> {
     
-    @Select("SELECT * FROM action_types ORDER BY name")
-    List<ActionType> selectAllOrdered();
+    @Select("SELECT * FROM action_types WHERE status = 'ACTIVE' ORDER BY created_at DESC")
+    List<ActionType> selectAllActive();
     
-    @Select("SELECT * FROM action_types WHERE industry_id = #{industryId} ORDER BY name")
-    List<ActionType> selectByIndustryId(@Param("industryId") String industryId);
+    @Select("SELECT * FROM action_types WHERE status = 'ACTIVE' AND display_name LIKE #{keyword} ORDER BY created_at DESC")
+    List<ActionType> searchByName(@Param("keyword") String keyword);
 }

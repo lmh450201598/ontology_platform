@@ -18,6 +18,7 @@ export interface ObjectType {
   backingDataset: string;
   industryId?: string | null;
   properties: Property[];
+  status?: string;
 }
 
 export type Cardinality = "1:1" | "1:N" | "N:M" | "N:1";
@@ -32,6 +33,7 @@ export interface LinkType {
   industryId?: string | null;
   sourceColumn?: string;
   targetColumn?: string;
+  status?: string;
 }
 
 export interface ActionRule {

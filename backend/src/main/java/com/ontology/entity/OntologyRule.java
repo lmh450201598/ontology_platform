@@ -10,25 +10,31 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-@TableName("action_types")
-public class ActionType {
+@TableName("ontology_rules")
+public class OntologyRule {
     
     @TableId(type = IdType.INPUT)
     private String id;
     
-    private String displayName;
+    private String ruleCategory;
     
-    private String description;
+    private String functionName;
     
-    private String status;
+    private String interfaceType;
+    
+    private String requestMethod;
+    
+    private String interfaceUrl;
+    
+    private String functionDescription;
     
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;
     
     @TableField(exist = false)
-    private List<ActionRule> rules;
+    private List<OntologyRuleParam> inputParams;
     
     @TableField(exist = false)
-    private List<ActionEffect> effects;
+    private List<OntologyRuleParam> outputParams;
 }

@@ -29,7 +29,9 @@ public class ObjectType {
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;
-    
+
+    private String status;
+
     @TableField(exist = false)
     private List<Property> properties;
 }
