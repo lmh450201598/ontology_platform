@@ -74,7 +74,7 @@ const EFFECT_TYPES = [
   { value: 'EMAIL', label: '邮件推送', enabled: false },
 ];
 
-export function ActionTypes() {
+export function ActionTypes({ data, onUpdate }: { data: any; onUpdate: (data: any) => void }) {
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [ontologyRules, setOntologyRules] = useState<OntologyRule[]>([]);
   const [functionTypes, setFunctionTypes] = useState<FunctionType[]>([]);
@@ -151,8 +151,14 @@ export function ActionTypes() {
     }
 
     try {
-      const saveData = {
-        ...formData,
+      const saveData: {
+        displayName: string;
+        description?: string;
+        rules: ActionRule[];
+        effects: ActionEffect[];
+      } = {
+        displayName: formData.displayName,
+        description: formData.description,
         rules,
         effects: effects.filter(e => e.effectType === 'NOTIFICATION'), // 只保存通知类型
       };

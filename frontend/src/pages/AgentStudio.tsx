@@ -74,17 +74,17 @@ const impactIcons = {
 };
 
 function timeAgo(dateStr: string) {
-  if (!dateStr) return 'Never';
+  if (!dateStr) return '从未';
   // SQLite datetime format: "2026-04-01 06:05:33" → replace space with T and add Z
   const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T') + 'Z';
   const d = new Date(normalized);
   if (isNaN(d.getTime())) return dateStr;
   const now = new Date();
   const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+  return `${Math.floor(diff / 86400)}天前`;
 }
 
 /* ─── Stock Autocomplete ───────────────────────────────────────────────────── */
@@ -255,7 +255,7 @@ function EventTimeline({ events }: { events: AgentEvent[] }) {
     return (
       <div className="text-center py-12 text-slate-400">
         <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
-        <p className="text-sm">No events discovered yet. Run the agent to start.</p>
+        <p className="text-sm">暂无事件，请运行智能体开始追踪</p>
       </div>
     );
   }
@@ -340,7 +340,7 @@ function AnalysisReport({ analysis }: { analysis: AgentAnalysis }) {
           {keyFindings.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-amber-500" /> Key Findings
+                <Zap className="w-3.5 h-3.5 text-amber-500" /> 核心发现
               </h4>
               <div className="space-y-1.5">
                 {keyFindings.map((f, i) => (
@@ -357,7 +357,7 @@ function AnalysisReport({ analysis }: { analysis: AgentAnalysis }) {
           {impactChain.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5 text-purple-500" /> Impact Chain (Ontology-based)
+                <Activity className="w-3.5 h-3.5 text-purple-500" /> 传导链路（基于本体）
               </h4>
               <div className="flex flex-wrap gap-2">
                 {impactChain.map((item, i) => (
@@ -379,7 +379,7 @@ function AnalysisReport({ analysis }: { analysis: AgentAnalysis }) {
           {analysis.recommendation && (
             <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
               <h4 className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5" /> Investment Recommendation
+                <TrendingUp className="w-3.5 h-3.5" /> 投资建议
               </h4>
               <p className="text-sm text-slate-700">{analysis.recommendation}</p>
             </div>
@@ -389,7 +389,7 @@ function AnalysisReport({ analysis }: { analysis: AgentAnalysis }) {
           <details className="group">
             <summary className="text-xs font-medium text-slate-500 cursor-pointer hover:text-blue-600 flex items-center gap-1">
               <ChevronRight className="w-3 h-3 group-open:rotate-90 transition-transform" />
-              View Full Report
+              查看完整报告
             </summary>
             <div className="mt-3 prose prose-sm prose-slate max-w-none text-sm leading-relaxed whitespace-pre-wrap border-t border-slate-100 pt-3">
               {analysis.content}
@@ -446,17 +446,17 @@ function AgentCard({
         </button>
       </div>
 
-      <p className="text-xs text-slate-500 line-clamp-2 mb-3">{agent.description || agent.analysis_focus || 'No description'}</p>
+      <p className="text-xs text-slate-500 line-clamp-2 mb-3">{agent.description || agent.analysis_focus || '暂无描述'}</p>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-[10px] text-slate-400">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {agent.last_run_at ? timeAgo(agent.last_run_at) : 'Never run'}
+            {agent.last_run_at ? timeAgo(agent.last_run_at) : '从未执行'}
           </span>
           {agent.schedule_minutes > 0 && (
             <span className="flex items-center gap-1">
-              · <RefreshCw className="w-3 h-3" /> Every {agent.schedule_minutes}m
+              · <RefreshCw className="w-3 h-3" /> 每 {agent.schedule_minutes}分钟
             </span>
           )}
         </div>
@@ -464,7 +464,7 @@ function AgentCard({
           <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); onRun(); }}
             disabled={running} className="h-6 px-2 text-[11px] gap-1">
             {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-            Run
+            执行
           </Button>
           <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); onDelete(); }}
             className="h-6 px-2 text-[11px] text-red-500 hover:text-red-700 hover:bg-red-50">
@@ -774,7 +774,7 @@ export function AgentStudio() {
     try {
       const res = await api.updateResearchAgent(agent.id, { is_active: !agent.is_active });
       setAgents(prev => prev.map(a => a.id === agent.id ? res.agent : a));
-      toast.success(res.agent.is_active ? 'Agent activated' : 'Agent paused');
+      toast.success(res.agent.is_active ? '智能体已启动' : '智能体已暂停');
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -784,7 +784,7 @@ export function AgentStudio() {
     setRunning(agentId);
     try {
       const result = await api.runResearchAgent(agentId);
-      toast.success(`Discovered ${result.events?.length || 0} events, generated analysis`);
+      toast.success(`发现 ${result.events?.length || 0} 个事件，已生成分析报告`);
       // Refresh data
       const [evtRes, anaRes] = await Promise.all([
         api.getAgentEvents(agentId),
@@ -809,7 +809,7 @@ export function AgentStudio() {
       if (selectedId === agentId) {
         setSelectedId(agents.find(a => a.id !== agentId)?.id || null);
       }
-      toast.success('Agent deleted');
+      toast.success('智能体已删除');
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -820,7 +820,7 @@ export function AgentStudio() {
     return (
       <div className="flex items-center justify-center h-64 gap-3 text-slate-500">
         <Loader2 className="w-5 h-5 animate-spin" />
-        Loading agents...
+        加载中...
       </div>
     );
   }
@@ -834,14 +834,14 @@ export function AgentStudio() {
           className={cn('flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
             mainTab === 'agents' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700')}
         >
-          <Bot className="w-4 h-4" /> Research Agents
+          <Bot className="w-4 h-4" /> 标的跟踪
         </button>
         <button
           onClick={() => setMainTab('qa')}
           className={cn('flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
             mainTab === 'qa' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700')}
         >
-          <MessageSquare className="w-4 h-4" /> 产业链智能问答
+          <MessageSquare className="w-4 h-4" /> 产业链问答
         </button>
       </div>
 
@@ -862,10 +862,10 @@ export function AgentStudio() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Bot className="w-5 h-5 text-blue-600" />
-            Research Agents
+            标的跟踪
           </h2>
           <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setShowCreate(true)}>
-            <Plus className="w-3 h-3" /> New
+            <Plus className="w-3 h-3" /> 新建
           </Button>
         </div>
 
@@ -884,10 +884,10 @@ export function AgentStudio() {
           {agents.length === 0 && !showCreate ? (
             <div className="text-center py-16 text-slate-400">
               <Bot className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">No agents yet</p>
-              <p className="text-xs mt-1">Create a research agent to start tracking events</p>
+              <p className="text-sm font-medium">暂无智能体</p>
+              <p className="text-xs mt-1">创建智能体开始追踪标的</p>
               <Button size="sm" className="mt-4 gap-1" onClick={() => setShowCreate(true)}>
-                <Plus className="w-3 h-3" /> Create Agent
+                <Plus className="w-3 h-3" /> 创建智能体
               </Button>
             </div>
           ) : (
@@ -930,26 +930,26 @@ export function AgentStudio() {
                 <div className="flex items-center gap-2">
                   <span className={cn('text-xs px-2 py-1 rounded-full font-medium',
                     selectedAgent.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500')}>
-                    {selectedAgent.is_active ? '● Active' : '○ Paused'}
+                    {selectedAgent.is_active ? '● 运行中' : '○ 已暂停'}
                   </span>
                   <Button size="sm" onClick={() => handleRun(selectedAgent.id)}
                     disabled={running === selectedAgent.id} className="gap-1.5">
                     {running === selectedAgent.id
-                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Running...</>
-                      : <><Play className="w-3.5 h-3.5" /> Run Now</>}
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> 执行中...</>
+                      : <><Play className="w-3.5 h-3.5" /> 立即执行</>}
                   </Button>
                 </div>
               </div>
               {selectedAgent.analysis_focus && (
                 <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
                   <Target className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="font-medium text-slate-600">Focus:</span> {selectedAgent.analysis_focus}
+                  <span className="font-medium text-slate-600">研究重点：</span> {selectedAgent.analysis_focus}
                 </div>
               )}
               <div className="flex items-center gap-4 mt-3 text-[11px] text-slate-400">
-                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Last run: {selectedAgent.last_run_at ? timeAgo(selectedAgent.last_run_at) : 'Never'}</span>
-                <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Schedule: every {selectedAgent.schedule_minutes}m</span>
-                <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> {events.length} events · {analyses.length} analyses</span>
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> 上次执行：{selectedAgent.last_run_at ? timeAgo(selectedAgent.last_run_at) : '从未'}</span>
+                <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3" /> 执行周期：每 {selectedAgent.schedule_minutes} 分钟</span>
+                <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> {events.length} 事件 · {analyses.length} 分析</span>
               </div>
             </div>
 
@@ -958,8 +958,8 @@ export function AgentStudio() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center gap-3 text-sm text-blue-700">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <div>
-                  <span className="font-medium">Agent is running...</span>
-                  <span className="text-blue-500 ml-2">Discovering events → Analyzing with ontology context → Generating report</span>
+                  <span className="font-medium">智能体执行中...</span>
+                  <span className="text-blue-500 ml-2">发现事件 → 基于本体分析 → 生成报告</span>
                 </div>
               </div>
             )}
@@ -970,13 +970,13 @@ export function AgentStudio() {
                 onClick={() => setDetailTab('analyses')}
                 className={cn('px-4 py-1.5 text-sm font-medium rounded-md transition-colors',
                   detailTab === 'analyses' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
-                <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Analyses ({analyses.length})</span>
+                <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> 分析报告 ({analyses.length})</span>
               </button>
               <button
                 onClick={() => setDetailTab('events')}
                 className={cn('px-4 py-1.5 text-sm font-medium rounded-md transition-colors',
                   detailTab === 'events' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
-                <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> Events ({events.length})</span>
+                <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> 事件列表 ({events.length})</span>
               </button>
             </div>
 
@@ -986,8 +986,8 @@ export function AgentStudio() {
                 analyses.length === 0 ? (
                   <div className="text-center py-16 text-slate-400">
                     <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm font-medium">No analyses yet</p>
-                    <p className="text-xs mt-1">Run the agent to generate an AI-powered research report</p>
+                    <p className="text-sm font-medium">暂无分析报告</p>
+                    <p className="text-xs mt-1">执行智能体以生成AI研究报告</p>
                   </div>
                 ) : (
                   analyses.map(a => <AnalysisReport key={a.id} analysis={a} />)
@@ -1003,8 +1003,8 @@ export function AgentStudio() {
           <div className="flex items-center justify-center h-full text-slate-400">
             <div className="text-center">
               <Bot className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p className="font-medium">Select an agent to view details</p>
-              <p className="text-sm mt-1">Or create a new research agent</p>
+              <p className="font-medium">选择智能体查看详情</p>
+              <p className="text-sm mt-1">或创建新的研究智能体</p>
             </div>
           </div>
         )}

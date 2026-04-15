@@ -255,7 +255,7 @@ export function OntologyRules() {
       return;
     }
     if (!formData.functionName) {
-      toast.error('请填写函数/方法名');
+      toast.error('请填写函数名');
       return;
     }
     if (!formData.interfaceType) {
@@ -391,7 +391,7 @@ export function OntologyRules() {
             <TableRow className="bg-slate-50/50">
               <TableHead className="w-8"></TableHead>
               <TableHead>规则类别</TableHead>
-              <TableHead>函数/方法名</TableHead>
+              <TableHead>函数名</TableHead>
               <TableHead>接口性质</TableHead>
               <TableHead>请求方式</TableHead>
               <TableHead>接口地址</TableHead>
@@ -578,7 +578,7 @@ export function OntologyRules() {
               </div>
 
               <div className="space-y-2">
-                <Label>函数/方法名 *</Label>
+                <Label>函数名 *</Label>
                 <Input
                   placeholder="如: createObject, updateStatus"
                   value={formData.functionName}

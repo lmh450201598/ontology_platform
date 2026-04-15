@@ -11,12 +11,16 @@ import {
   Position,
   NodeProps,
   Edge,
+  Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Database, Link as LinkIcon, Key, X, ArrowRight, ChevronRight } from 'lucide-react';
+import { Database, Link as LinkIcon, Key, X, ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
 import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/src/components/ui/sheet';
+import { AiStudio } from './AiStudio';
 import dagre from 'dagre';
+import { cn } from '@/src/lib/utils';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#84cc16', '#14b8a6'];
 
@@ -261,8 +265,9 @@ function DetailPanel({
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-export function GraphView({ data }: { data: OntologyData }) {
+export function GraphView({ data, onUpdate }: { data: OntologyData; onUpdate?: (data: OntologyData) => void }) {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [aiSheetOpen, setAiSheetOpen] = useState(false);
 
   const initialNodes = useMemo(() => layoutGraph(data.objectTypes, data.linkTypes), [data.objectTypes, data.linkTypes]);
 
@@ -385,15 +390,60 @@ export function GraphView({ data }: { data: OntologyData }) {
             minZoom={0.2}
             maxZoom={2}
           >
-            <Controls className="bg-white border-slate-200 shadow-sm" />
-            <MiniMap
-              nodeColor={node => {
-                const idx = data.objectTypes.findIndex(o => o.id === node.id);
-                return getColor(idx >= 0 ? idx : 0);
-              }}
-              maskColor="rgba(248, 250, 252, 0.7)"
-              className="bg-white border border-slate-200 rounded-lg shadow-sm"
-            />
+            {/* Controls in top-left */}
+            <Panel position="top-left" className="!m-2">
+              <Controls className="bg-white border-slate-200 shadow-sm !static" showInteractive={false} />
+            </Panel>
+            
+            {/* MiniMap in bottom-left */}
+            <Panel position="bottom-left" className="!m-2">
+              <MiniMap
+                nodeColor={node => {
+                  const idx = data.objectTypes.findIndex(o => o.id === node.id);
+                  return getColor(idx >= 0 ? idx : 0);
+                }}
+                maskColor="rgba(248, 250, 252, 0.7)"
+                className="bg-white border border-slate-200 rounded-lg shadow-sm"
+              />
+            </Panel>
+            
+            {/* AI Floating Ball in bottom-right */}
+            <Panel position="bottom-right" className="!m-4">
+              <Sheet open={aiSheetOpen} onOpenChange={setAiSheetOpen}>
+                <SheetTrigger asChild>
+                  <button
+                    className={cn(
+                      "w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600",
+                      "flex items-center justify-center gap-1",
+                      "text-white text-xs font-medium",
+                      "shadow-lg hover:shadow-xl hover:scale-105",
+                      "transition-all duration-300",
+                      "animate-pulse hover:animate-none",
+                      "group relative"
+                    )}
+                  >
+                    <Sparkles className="w-5 h-5" />
+                    <span className="text-[10px]">AI</span>
+                    {/* Tooltip */}
+                    <div className={cn(
+                      "absolute right-full mr-3 top-1/2 -translate-y-1/2",
+                      "bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap",
+                      "opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                    )}>
+                      AI本体建模
+                    </div>
+                  </button>
+                </SheetTrigger>
+                <SheetContent 
+                  side="right" 
+                  className="w-[600px] sm:max-w-[600px] p-0 bg-slate-50/95 backdrop-blur-sm"
+                  style={{ '--sheet-overlay-opacity': '0.3' } as React.CSSProperties}
+                >
+                  <AiStudio data={data} onUpdate={onUpdate || (() => {})} embedded />
+                </SheetContent>
+              </Sheet>
+            </Panel>
+            
             <Background color="#cbd5e1" gap={20} />
           </ReactFlow>
         </div>

@@ -11,29 +11,33 @@ import { OntologyData } from '@/src/store/ontologyStore';
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
-  setActiveTab: (tab: string) => void;
+  onNavigate: (tab: string) => void;
   ontologyData?: OntologyData;
   onUpdate?: (data: OntologyData) => void;
 }
 
 const navItems = [
   { id: 'dashboard', label: '仪表盘', icon: LayoutDashboard },
-  { id: 'explorer', label: '对象浏览器', icon: Compass },
-  { id: 'objects', label: '对象类型', icon: Database },
-  { id: 'links', label: '链接类型', icon: LinkIcon },
-  { id: 'functions', label: '函数类型', icon: Code },
-  { id: 'actions', label: '动作类型', icon: PlayCircle, children: [
-    { id: 'actions', label: '动作类型', icon: PlayCircle },
-    { id: 'rules', label: '本体规则', icon: Shield },
-  ]},
   { id: 'graph', label: '本体图谱', icon: Network },
-  // { id: 'industry', label: '产业图谱', icon: Building2 },
-  { id: 'ai', label: 'AI 工作室', icon: Sparkles },
-  { id: 'agents', label: '研究智能体', icon: Bot },
+  { id: 'objects', label: '对象', icon: Database, children: [
+    { id: 'objects', label: '对象类型', icon: Database },
+    { id: 'explorer', label: '对象浏览器', icon: Compass },
+  ]},
+  { id: 'links', label: '链接', icon: LinkIcon, children: [
+    { id: 'links', label: '链接类型', icon: LinkIcon },
+  ]},
+  { id: 'actions', label: '动作', icon: PlayCircle, children: [
+    { id: 'actions', label: '动作类型', icon: PlayCircle },
+  ]},
+  { id: 'functions', label: '函数', icon: Code, children: [
+    { id: 'rules', label: '本体规则', icon: Shield },
+    { id: 'functions', label: '函数类型', icon: Code },
+  ]},
+  { id: 'agents', label: 'AI工坊', icon: Bot },
   { id: 'settings', label: '设置', icon: Settings },
 ];
 
-export function Layout({ children, activeTab, setActiveTab, ontologyData, onUpdate }: LayoutProps) {
+export function Layout({ children, activeTab, onNavigate, ontologyData, onUpdate }: LayoutProps) {
   const [pendingChanges, setPendingChanges] = useState(0);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
@@ -193,7 +197,7 @@ export function Layout({ children, activeTab, setActiveTab, ontologyData, onUpda
                     if (hasChildren) {
                       toggleMenu(item.id);
                     } else {
-                      setActiveTab(item.id);
+                      onNavigate(item.id);
                     }
                   }}
                   className={cn(
@@ -216,7 +220,7 @@ export function Layout({ children, activeTab, setActiveTab, ontologyData, onUpda
                     {item.children!.map((child) => (
                       <button
                         key={child.id}
-                        onClick={() => setActiveTab(child.id)}
+                        onClick={() => onNavigate(child.id)}
                         className={cn(
                           "w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
                           activeTab === child.id 

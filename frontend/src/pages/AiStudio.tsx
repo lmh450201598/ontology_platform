@@ -126,12 +126,12 @@ function timeLabel(dateStr: string) {
 
 const WELCOME_MSG: ChatMessage = {
   role: 'system',
-  text: '欢迎使用 AI Studio！我是你的本体建模助手。\n\n你可以：\n• 描述你的业务领域，我来生成完整的数据本体\n• 要求我添加、修改或删除实体和关系\n• 让我为已有本体添加语义层信息\n• 提问关于本体设计的最佳实践\n\n每次对话我都会在已有本体基础上迭代改进。'
+  text: '欢迎使用 AI本体建模！我是你的本体建模助手。\n\n你可以：\n• 描述你的业务领域，我来生成完整的数据本体\n• 要求我添加、修改或删除实体和关系\n• 让我为已有本体添加语义层信息\n• 提问关于本体设计的最佳实践\n\n每次对话我都会在已有本体基础上迭代改进。'
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function AiStudio({ data, onUpdate }: { data: OntologyData; onUpdate: (data: OntologyData) => void }) {
+export function AiStudio({ data, onUpdate, embedded = false }: { data: OntologyData; onUpdate: (data: OntologyData) => void; embedded?: boolean }) {
   // History
   const [conversations, setConversations] = useState<ConvRecord[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -438,7 +438,7 @@ export function AiStudio({ data, onUpdate }: { data: OntologyData; onUpdate: (da
   ];
 
   return (
-    <div className="flex h-full gap-0 -m-6">
+    <div className={cn("flex h-full gap-0", !embedded && "-m-6")}>
       {/* ── Left: Conversation History Sidebar ────────────────────────────── */}
       <div className="w-56 bg-slate-50 border-r border-slate-200 flex flex-col shrink-0">
         {/* Sidebar Header */}
@@ -529,10 +529,10 @@ export function AiStudio({ data, onUpdate }: { data: OntologyData; onUpdate: (da
         <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-purple-600" />
-            <h1 className="font-bold text-lg text-slate-900">AI Studio</h1>
+            <h1 className="font-bold text-lg text-slate-900">AI本体建模</h1>
             {sessionId && (
               <Badge variant="outline" className="font-mono text-[10px] text-purple-600 border-purple-200">
-                Session Active
+                会话中
               </Badge>
             )}
           </div>
